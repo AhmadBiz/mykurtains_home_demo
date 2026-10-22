@@ -24,7 +24,7 @@ dist/houses/<id>/           ← chaque maison, servie sous /houses/<id>/
 
 | Dossier | Maison | Détails |
 |---|---|---|
-| [`houses/caprea-2-storey`](houses/caprea-2-storey) | Cottage 2 étages avec garage et sous-sol aménagé (plans Caprea) | 4 chambres à l'étage + 2 au sous-sol, 27 fenêtres habillables |
+| [`houses/sara`](houses/sara) | Maison Sara — 6274 Blvd. des Rossignols, Laval, QC H7L 5V6 — maison à deux étages avec garage et sous-sol aménagé | 4 chambres à l'étage + 2 au sous-sol, 27 fenêtres habillables |
 
 ## Déploiement sur Vercel (un seul projet) / Deploy to Vercel (single project)
 
@@ -36,7 +36,7 @@ Chaque push sur `main` reconstruit toutes les maisons (quelques secondes par mai
 
 ## Ajouter une maison / Add a house
 
-1. Copiez `houses/caprea-2-storey` vers `houses/<id-de-la-nouvelle-maison>`.
+1. Copiez `houses/sara` vers `houses/<id-de-la-nouvelle-maison>`.
 2. Transcrivez les plans dans `src/data/house.ts` (murs, ouvertures, escaliers), ajustez `src/data/coverings.ts`
    (habillages par défaut) et `src/scene/Furniture.tsx` (meubles). Vérifiez avec `npx tsx scripts/validate-house.ts`.
 3. Ajoutez une entrée dans `houses.json` (id = nom du dossier, nom, client, description, statistiques, vignette).
@@ -46,7 +46,7 @@ Chaque push sur `main` reconstruit toutes les maisons (quelques secondes par mai
 
 ```bash
 # une maison seule, avec rechargement à chaud
-cd houses/caprea-2-storey && npm install && npm run dev
+cd houses/sara && npm install && npm run dev
 
 # le site complet (toutes les maisons + page d'accueil)
 npm run build && npm run preview      # http://localhost:4321

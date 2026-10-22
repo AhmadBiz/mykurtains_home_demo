@@ -375,6 +375,16 @@ export const HOUSE: HouseData = {
   ramps: rampsFt.map((s) => ({ ...s, bounds: mb(s.bounds), y0: m(s.y0), y1: m(s.y1) })),
 };
 
+/** Identity of this house (shown in the UI). */
+export const HOUSE_META = {
+  name: 'Maison Sara',
+  nameEn: "Sara's house",
+  client: 'Sara',
+  address: '6274 Blvd. des Rossignols, Laval, QC H7L 5V6, Canada',
+  description: 'Maison à deux étages avec garage et sous-sol aménagé.',
+  descriptionEn: 'Two-storey house with garage and finished basement.',
+};
+
 /** Where the visitor starts: on the front walkway, looking at the house. */
 export const START_POSITION: [number, number, number] = [m(-16), m(GRADE_FT), m(17)];
 /** Yaw (radians, about +Y) at start. yaw = -PI/2 looks toward +X (into the house). */

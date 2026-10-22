@@ -1,6 +1,8 @@
-# Maison 3D · Habillage de fenêtres
+# Maison Sara · Habillage de fenêtres
 
-Visite virtuelle 3D de la maison (plans Caprea — rez-de-chaussée, étage, sous-sol et élévations) dans laquelle on se
+6274 Blvd. des Rossignols, Laval, QC H7L 5V6, Canada
+
+Visite virtuelle 3D de la maison de Sara (plans d’architecte — rez-de-chaussée, étage, sous-sol et élévations) dans laquelle on se
 promène à la première personne et on choisit, **fenêtre par fenêtre**, l'habillage : rideaux, voilages, store à rouleau,
 store romain, store cellulaire, store vénitien, store vertical ou persiennes, dans la couleur de son choix, avec le degré
 d'ouverture et l'inclinaison des lames.

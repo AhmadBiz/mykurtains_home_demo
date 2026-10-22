@@ -57,7 +57,7 @@ const cards = houses
         <div class="body">
           ${h.client ? `<div class="client">${esc(h.client)}</div>` : ''}
           <h2>${esc(h.name)}</h2>
-          ${h.nameEn ? `<div class="sub">${esc(h.nameEn)}</div>` : ''}
+          ${h.address ? `<div class="address">📍 ${esc(h.address)}</div>` : h.nameEn ? `<div class="sub">${esc(h.nameEn)}</div>` : ''}
           <p>${esc(h.description || '')}</p>
           ${stats ? `<ul class="stats">${stats}</ul>` : ''}
           <span class="cta">Visiter la maison en 3D <span aria-hidden="true">→</span></span>
