@@ -50,7 +50,7 @@ cd houses/sara && npm install && npm run dev
 
 # le site complet (toutes les maisons + page d'accueil)
 npm run build && npm run preview      # http://localhost:4321
-node scripts/build-all.mjs --house caprea-2-storey   # une seule maison
+node scripts/build-all.mjs --house sara   # une seule maison
 node scripts/build-all.mjs --site-only                # page d'accueil seulement
 ```
 
