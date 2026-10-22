@@ -12,6 +12,7 @@ import type { Vec3 } from './geom';
 import { Instanced } from './Instanced';
 import type { InstanceItem } from './Instanced';
 import { useDispose } from './hooks';
+import { LEVEL_BY_ID, pointInLevelOutline } from '../../data/geometry';
 
 const ROOF_BOTTOM = SMALL_ROOF_TOP - SMALL_ROOF_THICKNESS;
 const FASCIA_T = 0.04;
@@ -147,8 +148,13 @@ export function Balcony() {
 
   const roofPosts = useMemo<[number, number][]>(() => [[rx, wallN + 0.08], [rx, rz]], [rx, rz, wallN]);
   const railPosts = useMemo<[number, number][]>(() => [[wallW + 0.06, rz], [railXa, rz], [railXb, rz]], [wallW, rz, railXa, railXb]);
+  // Posts only where the deck is not carried by the basement foundation: a post inside the basement
+  // footprint would stand in the middle of a basement room.
   const supportPosts = useMemo<[number, number][]>(
-    () => [[x2 - 0.1, wallN + 0.1], [x2 - 0.1, z2 - 0.1], [x2 - 0.1, (wallN + z2) / 2], [wallW + 0.1, z2 - 0.1], [(wallW + x2) / 2, z2 - 0.1]],
+    () =>
+      (
+        [[x2 - 0.1, wallN + 0.1], [x2 - 0.1, z2 - 0.1], [x2 - 0.1, (wallN + z2) / 2], [wallW + 0.1, z2 - 0.1], [(wallW + x2) / 2, z2 - 0.1]] as [number, number][]
+      ).filter(([px, pz]) => !pointInLevelOutline(LEVEL_BY_ID.basement, px, pz)),
     [x2, z2, wallN, wallW],
   );
 

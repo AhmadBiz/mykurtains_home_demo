@@ -37,12 +37,12 @@ interface TreeSpec {
 
 const TREES: TreeSpec[] = [
   { x: -9, z: -3, kind: 'round', h: 6.5 },
-  { x: -7.5, z: 14, kind: 'conifer', h: 7 },
+  { x: -5, z: 21.5, kind: 'conifer', h: 7 },
   { x: 17.5, z: 2, kind: 'round', h: 7.5 },
   { x: 18, z: 13.5, kind: 'conifer', h: 8 },
   { x: 6, z: 15.8, kind: 'round', h: 6 },
   { x: 4, z: -5.8, kind: 'round', h: 5.5 },
-  { x: -10, z: 16.5, kind: 'conifer', h: 6 },
+  { x: -10.5, z: 23, kind: 'conifer', h: 6 },
   { x: 24, z: -3, kind: 'round', h: 8 },
   { x: 26, z: 9, kind: 'conifer', h: 9 },
   { x: 12, z: -6.5, kind: 'round', h: 6 },

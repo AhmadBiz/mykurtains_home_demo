@@ -128,7 +128,7 @@ export function WindowMesh({ win, mats }: Props) {
   );
 
   return (
-    <group position={position} rotation={[0, yaw, 0]} name={`window:${id}`}>
+    <group position={position} rotation={[0, yaw, 0]} name={`window:${id}`} userData={userData}>
       {isDoor ? <DoorBody dims={dims} mats={mats} /> : <WindowBody dims={dims} mats={mats} frosted={frosted} />}
       <group position={[0, 0, wallThickness / 2]} renderOrder={COVERING_GROUP_ORDER}>
         <Covering

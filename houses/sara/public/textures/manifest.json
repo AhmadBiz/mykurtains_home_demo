@@ -1,0 +1,218 @@
+{
+ "wood_floor": {
+  "size": 1024,
+  "metres": 2.0,
+  "purpose": "hardwood floors",
+  "maps": {
+   "diff": "textures/wood_floor/diff.jpg",
+   "nor": "textures/wood_floor/nor.jpg",
+   "rough": "textures/wood_floor/rough.jpg"
+  }
+ },
+ "laminate_floor_02": {
+  "size": 1024,
+  "metres": 2.0,
+  "purpose": "laminate floors (basement)",
+  "maps": {
+   "diff": "textures/laminate_floor_02/diff.jpg",
+   "nor": "textures/laminate_floor_02/nor.jpg",
+   "rough": "textures/laminate_floor_02/rough.jpg"
+  }
+ },
+ "floor_tiles_06": {
+  "size": 1024,
+  "metres": 2.0,
+  "purpose": "tile floors (kitchen, baths, vestibule)",
+  "maps": {
+   "diff": "textures/floor_tiles_06/diff.jpg",
+   "nor": "textures/floor_tiles_06/nor.jpg",
+   "rough": "textures/floor_tiles_06/rough.jpg"
+  }
+ },
+ "concrete_floor_02": {
+  "size": 512,
+  "metres": 2.0,
+  "purpose": "concrete / epoxy floors (garage, mechanical, storage)",
+  "maps": {
+   "diff": "textures/concrete_floor_02/diff.jpg",
+   "nor": "textures/concrete_floor_02/nor.jpg",
+   "rough": "textures/concrete_floor_02/rough.jpg"
+  }
+ },
+ "fabric_pattern_07": {
+  "size": 512,
+  "metres": 1.0,
+  "purpose": "carpet (tinted)",
+  "maps": {
+   "nor": "textures/fabric_pattern_07/nor.jpg",
+   "rough": "textures/fabric_pattern_07/rough.jpg"
+  }
+ },
+ "white_plaster_02": {
+  "size": 512,
+  "metres": 2.0,
+  "purpose": "interior walls (colour from the room)",
+  "maps": {
+   "nor": "textures/white_plaster_02/nor.jpg",
+   "rough": "textures/white_plaster_02/rough.jpg"
+  }
+ },
+ "red_brick_03": {
+  "size": 1024,
+  "metres": 2.0,
+  "purpose": "brick facade, ground storey",
+  "maps": {
+   "diff": "textures/red_brick_03/diff.jpg",
+   "nor": "textures/red_brick_03/nor.jpg",
+   "rough": "textures/red_brick_03/rough.jpg"
+  }
+ },
+ "concrete_wall_008": {
+  "size": 512,
+  "metres": 2.0,
+  "purpose": "exposed foundation",
+  "maps": {
+   "diff": "textures/concrete_wall_008/diff.jpg",
+   "nor": "textures/concrete_wall_008/nor.jpg",
+   "rough": "textures/concrete_wall_008/rough.jpg"
+  }
+ },
+ "roof_slates_03": {
+  "size": 1024,
+  "metres": 2.0,
+  "purpose": "roof",
+  "maps": {
+   "diff": "textures/roof_slates_03/diff.jpg",
+   "nor": "textures/roof_slates_03/nor.jpg",
+   "rough": "textures/roof_slates_03/rough.jpg"
+  }
+ },
+ "aerial_grass_rock": {
+  "size": 1024,
+  "metres": 4.0,
+  "purpose": "lawn",
+  "maps": {
+   "diff": "textures/aerial_grass_rock/diff.jpg",
+   "nor": "textures/aerial_grass_rock/nor.jpg",
+   "rough": "textures/aerial_grass_rock/rough.jpg"
+  }
+ },
+ "asphalt_02": {
+  "size": 512,
+  "metres": 3.0,
+  "purpose": "driveway, street",
+  "maps": {
+   "diff": "textures/asphalt_02/diff.jpg",
+   "nor": "textures/asphalt_02/nor.jpg",
+   "rough": "textures/asphalt_02/rough.jpg"
+  }
+ },
+ "pavement_02": {
+  "size": 512,
+  "metres": 2.0,
+  "purpose": "walkway, porch, patio",
+  "maps": {
+   "diff": "textures/pavement_02/diff.jpg",
+   "nor": "textures/pavement_02/nor.jpg",
+   "rough": "textures/pavement_02/rough.jpg"
+  }
+ },
+ "weathered_brown_planks": {
+  "size": 512,
+  "metres": 2.0,
+  "purpose": "balcony deck, fence",
+  "maps": {
+   "diff": "textures/weathered_brown_planks/diff.jpg",
+   "nor": "textures/weathered_brown_planks/nor.jpg",
+   "rough": "textures/weathered_brown_planks/rough.jpg"
+  }
+ },
+ "marble_01": {
+  "size": 512,
+  "metres": 2.0,
+  "purpose": "counters",
+  "maps": {
+   "diff": "textures/marble_01/diff.jpg",
+   "nor": "textures/marble_01/nor.jpg",
+   "rough": "textures/marble_01/rough.jpg"
+  }
+ },
+ "wood_table_001": {
+  "size": 512,
+  "metres": 1.0,
+  "purpose": "furniture wood (oak)",
+  "maps": {
+   "diff": "textures/wood_table_001/diff.jpg",
+   "nor": "textures/wood_table_001/nor.jpg",
+   "rough": "textures/wood_table_001/rough.jpg"
+  }
+ },
+ "dark_wood": {
+  "size": 512,
+  "metres": 1.0,
+  "purpose": "furniture wood (walnut), stair treads, wood blinds",
+  "maps": {
+   "diff": "textures/dark_wood/diff.jpg",
+   "nor": "textures/dark_wood/nor.jpg",
+   "rough": "textures/dark_wood/rough.jpg"
+  }
+ },
+ "kitchen_wood": {
+  "size": 512,
+  "metres": 1.0,
+  "purpose": "cabinet doors",
+  "maps": {
+   "diff": "textures/kitchen_wood/diff.jpg",
+   "nor": "textures/kitchen_wood/nor.jpg",
+   "rough": "textures/kitchen_wood/rough.jpg"
+  }
+ },
+ "brown_leather": {
+  "size": 512,
+  "metres": 1.0,
+  "purpose": "sofa / armchair leather",
+  "maps": {
+   "diff": "textures/brown_leather/diff.jpg",
+   "nor": "textures/brown_leather/nor.jpg",
+   "rough": "textures/brown_leather/rough.jpg"
+  }
+ },
+ "leather_white": {
+  "size": 512,
+  "metres": 1.0,
+  "purpose": "light upholstery",
+  "maps": {
+   "diff": "textures/leather_white/diff.jpg",
+   "nor": "textures/leather_white/nor.jpg",
+   "rough": "textures/leather_white/rough.jpg"
+  }
+ },
+ "velour_velvet": {
+  "size": 512,
+  "metres": 0.5,
+  "purpose": "velvet curtains (colour from the catalogue)",
+  "maps": {
+   "nor": "textures/velour_velvet/nor.jpg",
+   "rough": "textures/velour_velvet/rough.jpg"
+  }
+ },
+ "fabric_pattern_05": {
+  "size": 512,
+  "metres": 0.5,
+  "purpose": "linen curtains / roman & cellular shades (colour from the catalogue)",
+  "maps": {
+   "nor": "textures/fabric_pattern_05/nor.jpg",
+   "rough": "textures/fabric_pattern_05/rough.jpg"
+  }
+ },
+ "bark_brown_02": {
+  "size": 512,
+  "metres": 1.0,
+  "purpose": "tree trunks",
+  "maps": {
+   "diff": "textures/bark_brown_02/diff.jpg",
+   "nor": "textures/bark_brown_02/nor.jpg",
+   "rough": "textures/bark_brown_02/rough.jpg"
+  }
+ }
+}

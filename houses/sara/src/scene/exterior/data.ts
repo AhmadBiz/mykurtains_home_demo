@@ -56,7 +56,7 @@ export const COLORS = {
   fascia: '#ebe8e1',
   soffit: '#d8d4cb',
   shingle: '#3a3b3e',
-  membrane: '#4e4f52',
+  membrane: '#6a6c70',
   deck: '#8a6a4b',
   post: '#7a5c40',
   rail: '#8c6d4f',

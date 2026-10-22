@@ -215,6 +215,8 @@ const wallsFt: WallDef[] = [
   int('u-int-14', 'upper', [9.5, 29.5], [12.5, 29.5]), // linen closet (door)
   int('u-int-15', 'upper', [0, 23], [9.5, 23]), // bedroom 3 / bedroom 4
   int('u-int-16', 'upper', [12.5, 29.5], [25, 29.5]), // bedroom 2 / walk-in 2 (door)
+  int('u-int-17', 'upper', [20.5, 20.5], [25, 20.5]), // ensuite / bedroom 2
+  int('u-int-18', 'upper', [4, 12.5], [9.5, 12.5]), // bedroom 4 north / corridor
   // ===================== BASEMENT — exterior =====================
   ext('b-ext-n1', 'basement', [5, 3], [10.5, 3]),
   ext('b-ext-n2', 'basement', [10.5, 3], [20.5, 3]),

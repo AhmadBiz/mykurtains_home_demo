@@ -11,8 +11,11 @@ import type { Vec3 } from './geom';
 import { Instanced } from './Instanced';
 import type { InstanceItem } from './Instanced';
 import { useDispose } from './hooks';
+import { LEVEL_BY_ID } from '../../data/geometry';
 
 const LAWN_SIZE = 240;
+const LAWN_CX = 6;
+const LAWN_CZ = 5;
 const STONE_COLORS = ['#a9a49a', '#9c978d', '#b3ada2', '#8f8a80', '#a39d92'];
 
 export function Ground() {
@@ -35,6 +38,29 @@ export function Ground() {
   const stoneMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.95 }), []);
   const stoneGeom = useMemo(() => new THREE.BoxGeometry(0.55, 0.03, 0.55), []);
   useDispose(lawnMap, asphaltMap, walkMap, lawnMat, asphaltMat, walkMat, curbMat, edgeMat, roadMat, stoneMat, stoneGeom);
+
+  // Lawn plane with a hole under the basement footprint: the grade (-1.07 m) sits 1 cm below the eye
+  // of a visitor standing in the basement, so a solid plane would show as a green line through every
+  // basement room. The hole follows the wall centre-lines, hidden inside the 1 ft walls.
+  const lawnGeom = useMemo(() => {
+    const half = LAWN_SIZE / 2;
+    const shape = new THREE.Shape([
+      new THREE.Vector2(-half, -half),
+      new THREE.Vector2(half, -half),
+      new THREE.Vector2(half, half),
+      new THREE.Vector2(-half, half),
+    ]);
+    // mesh frame: rotation -PI/2 about X at (LAWN_CX, GRADE_Y, LAWN_CZ) → local x = X - cx, local y = cz - Z
+    const hole = new THREE.Path(LEVEL_BY_ID.basement.outline.map(([x, z]) => new THREE.Vector2(x - LAWN_CX, LAWN_CZ - z)));
+    shape.holes.push(hole);
+    const geom = new THREE.ShapeGeometry(shape, 1);
+    // ShapeGeometry UVs are the raw shape coordinates: normalise them to the 0..1 range a PlaneGeometry would have.
+    const uv = geom.getAttribute('uv') as THREE.BufferAttribute;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / LAWN_SIZE + 0.5, uv.getY(i) / LAWN_SIZE + 0.5);
+    uv.needsUpdate = true;
+    return geom;
+  }, []);
+  useDispose(lawnGeom);
 
   // Driveway: flat apron from the street to the ramp's low end, then the sloped slab up to the garage.
   const { driveTop, driveSides } = useMemo(() => {
@@ -98,8 +124,7 @@ export function Ground() {
   return (
     <group name="ground">
       {/* lawn */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[6, GRADE_Y, 5]} material={lawnMat} receiveShadow>
-        <planeGeometry args={[LAWN_SIZE, LAWN_SIZE]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[LAWN_CX, GRADE_Y, LAWN_CZ]} material={lawnMat} geometry={lawnGeom} receiveShadow>
       </mesh>
 
       {/* street */}
