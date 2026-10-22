@@ -1,0 +1,31 @@
+{
+  "name": "maison-3d-habillage-fenetres",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Interactive 3D walkthrough of a two-storey house with per-window curtain and blind selection",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "screenshot": "node scripts/screenshot.mjs"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.186.1",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "playwright": "^1.64.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.5"
+  }
+}

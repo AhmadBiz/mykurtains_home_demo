@@ -1,0 +1,82 @@
+# Architecture — Maison 3D · Habillage de fenêtres
+
+Interactive 3D walkthrough of a two-storey house (with basement) transcribed from the architect's
+plans, where the visitor chooses curtains / blinds / shutters for every window.
+
+Stack: **Vite + React 19 + TypeScript + three.js + @react-three/fiber 9 + @react-three/drei 10 + zustand 5**.
+No external 3D assets or textures — everything is procedural so the app deploys to Vercel as a static site.
+
+## Coordinate system & units
+
+* World units are **metres**, Y up. The source data (`src/data/house.ts`) is authored in **feet** and converted once.
+* **X** runs from the **front** of the house (street, small X) to the **rear** (large X).
+* **Z** runs from the **north** side of the plan (page top, small Z) to the **south** side (large Z).
+* Ground-floor finished floor is **Y = 0**. Basement floor Y = −9 ft, upper floor Y = +10 ft. Lawn (grade) is `HOUSE.gradeY` = −3.5 ft.
+* Camera / player yaw convention (three.js default): yaw = rotation about +Y; the camera looks along `(-sin yaw, 0, -cos yaw)`.
+  `yaw = -PI/2` looks toward +X (into the house from the street).
+
+## Data (`src/data`)
+
+| File | What |
+|---|---|
+| `types.ts` | All interfaces (`Level`, `Room`, `WallDef`, `Opening`, `StairFlight`, `Platform`, `HouseData`). Read this first. |
+| `house.ts` | `HOUSE` (metres): 3 levels (outline polygons + slab holes), 35 rooms, 77 walls, 54 openings (27 coverable windows incl. the patio door), stairs, landings, porch/balcony platforms, exterior ramps. Also `START_POSITION`, `START_YAW`, `PLAYER_EYE_HEIGHT`, `PLAYER_RADIUS`. |
+| `coverings.ts` | Catalogue of the 9 covering types (`COVERING_TYPES`, `COVERING_BY_ID`), colour options, `WindowCoveringState`, `DEFAULT_COVERINGS` (initial look of each window). |
+| `geometry.ts` | Derived helpers: `WALL_GEOMS` (length / dir / normal / yaw per wall), `WINDOWS` (every coverable opening with world `center`, `yaw`, `inward` normal, size), `COLLISION_SEGMENTS`, `resolvePlayerCollisions()`, `groundHeightAt()` (floors + stairs + ramps + platforms + grade), `levelForY()`, `roomAt()`, `viewpointForWindow()`, `LEVEL_ENTRY`, point-in-polygon utils. |
+
+Walls are **centre-line segments** `a → b` with `thickness`, `baseY`, `height`. Openings are placed by `at` = distance from `a`
+to the opening centre, with `width`, `height`, `sill`. Wall local frame: +X along `a → b`, rotate by `WALL_GEOMS.get(id).yaw` about Y.
+
+Stairs: `dir` is the direction of **ascent**, `y0` the height at the low end, `y1` at the high end. The stair block
+(X 10.5–20.5 ft, Z 3–9 ft) holds two U-shaped stairs stacked: A (north half) + B (south half) go up with a landing at
+X 10.5–13.5; C (south half) + D (north half) go down. A full-height **spine wall** at Z = 6 ft separates the halves. The
+slab of each level has a hole over the block.
+
+## Store (`src/store/useStore.ts`)
+
+zustand store `useStore` — `mode` (`walk` | `orbit`), `level` (where the player is), `panel`, `selectedWindowId`,
+`hoveredWindowId`, `coverings` (per window id → `WindowCoveringState`, persisted to localStorage), `teleport` request
+(`{position, yaw, seq}` consumed by the Player), `pointerLocked`, `isTouch`, `quality`, `showCeilings`, `orbitLevel`,
+`hasStarted`, `lang` (`fr` default, `en`). Actions: `selectWindow`, `setCoveringType`, `updateCovering`, `applyToRoom/Level/All`,
+`resetCovering`, `goToWindow(id)` (teleports in front of it and opens the panel), `goToLevel`, `goToStart`, …
+
+`playerState` (same file) is a **mutable, non-reactive** object with the live `x, y, z, yaw, pitch, aimedWindowId` —
+written by the Player each frame, read by the minimap / HUD via requestAnimationFrame. `useT()` returns `(fr, en) => string`.
+
+`src/scene/input.ts` — mutable `input` object (forward / right / lookDX / lookDY / sprint / selectRequested) shared by
+keyboard+mouse handlers and the touch controls.
+
+`window.__house` — debug/automation API (`teleport`, `goToWindow`, `setCovering`, `setMode`, `start`, `state`, `player`, `windows`),
+used by `scripts/screenshot.mjs`.
+
+## Scene composition (`src/scene`)
+
+`Scene.tsx` wires: `<Sky>` + fog + `<Lighting>` + `<Exterior>` + `<House>` + `<WindowMeshes>` + `<Furniture>` + (`<Player>` | `<OrbitView>`).
+
+| File | Owner / responsibility |
+|---|---|
+| `House.tsx` (+ `structure/`) | Walls (with openings cut out), floor slabs per level (outline minus holes), per-room floor finishes, ceilings, stairs + landings + railings, interior door frames & open door leaves, exterior doors (front door with glazing, garage door, side door), baseboards. Honours `showCeilings` and, in orbit mode, hides levels above `orbitLevel` and that level's ceiling. Exterior faces: brick on the ground storey, horizontal siding on the upper storey, concrete for the exposed foundation (matches the elevations). |
+| `Exterior.tsx` (+ `exterior/`) | Lawn, driveway, walkway, porch (slab, columns, small roof), porch steps, balcony deck + railing + posts + stairs to the yard, side-door landing + steps, hip roofs with eaves over the upper storey, trees/shrubs, fence/hedge. Uses `HOUSE.platforms` / `HOUSE.ramps` for positions. |
+| `WindowMeshes.tsx` | For every `WINDOWS` entry: frame, glass, sill, interior casing; patio door panels; hover/selected highlight; an invisible hit mesh with `userData.windowId` for the Player's centre raycast; R3F pointer events (`onClick → selectWindow`) for orbit mode; mounts `<Covering>` on the interior face. |
+| `coverings/*` | One component per covering type (see `coverings/types.ts` for the local frame contract). `index.tsx` dispatches. Pure, prop-driven, procedural. |
+| `Furniture.tsx` (+ `furniture/`) | Low-poly props so each room reads as what it is (beds, sofas, kitchen, bathrooms, car in the garage…). Positions from `HOUSE.rooms` bounds. |
+| `Player.tsx` | First-person controller: pointer-lock mouse look, WASD/arrows, shift sprint, touch input via `input`, collision (`resolvePlayerCollisions`), stairs/ramps (`groundHeightAt`), teleport requests, level detection, centre raycast → `playerState.aimedWindowId`, click / E / touch-select → `selectWindow`. |
+| `OrbitView.tsx` | Dollhouse camera (drei `OrbitControls`) for the orbit mode. |
+| `Lighting.tsx` | Sun + hemisphere + ambient. |
+
+## UI (`src/ui`)
+
+`Hud.tsx` (top bar: title, level pills, walk/orbit toggle, buttons for windows list / map / help / language / quality; crosshair
+and aimed-window tooltip in walk mode; hints), `MiniMap.tsx` (2D canvas plan of the current level with player arrow),
+`CoveringPanel.tsx` (picker for the selected window), `WindowList.tsx` (drawer listing every window by level/room → `goToWindow`),
+`IntroOverlay.tsx` (start screen & instructions), `TouchControls.tsx` (joystick + look area + select button on touch devices),
+`LoadingFallback.tsx`.
+
+Design language: dark glass panels (`--panel`), amber accent (`--accent`), rounded 14px, Inter/system font, works at phone width.
+Default language French with an English toggle (all labels through `useT(fr, en)`; data already carries `name` / `nameFr`).
+
+## Scripts
+
+* `npm run dev` / `npm run build` (tsc + vite) / `npm run preview`
+* `npx tsx scripts/validate-house.ts` — data sanity + reachability of every room and window viewpoint
+* `npm run screenshot` — Playwright + bundled Chromium: builds, serves, drives `window.__house`, saves PNGs to `screenshots/`
