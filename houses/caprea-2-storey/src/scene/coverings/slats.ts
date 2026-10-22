@@ -300,7 +300,12 @@ export function grainBox(w: number, h: number, d: number, x = 0, y = 0, z = 0, a
 // ---------------------------------------------------------------------------------------------
 // Chain loop (roller / vertical blind control chain)
 // ---------------------------------------------------------------------------------------------
-/** Closed "stadium" path in the XY plane: top at y = 0, strands at x = ±r down to y = -len. */
+/**
+ * Closed "stadium" path in the XY plane: top at y = 0, strands at x = ±r down to y = -len.
+ * `t` is split into four EQUAL quarters (right strand, bottom arc, left strand, top arc) and the
+ * arc-length remapping is disabled, so a TubeGeometry spends a quarter of its segments on each
+ * small semicircle instead of one or two (the arcs are < 2 % of the length of a long loop).
+ */
 class StadiumCurve extends THREE.Curve<THREE.Vector3> {
   constructor(
     private readonly r: number,
@@ -311,20 +316,28 @@ class StadiumCurve extends THREE.Curve<THREE.Vector3> {
 
   getPoint(t: number, target = new THREE.Vector3()): THREE.Vector3 {
     const { r, len } = this;
-    const arc = Math.PI * r;
-    const total = 2 * len + 2 * arc;
-    let s = clamp01(t) * total;
-    if (s < len) return target.set(r, -s, 0); // right strand, downward
-    s -= len;
-    if (s < arc) {
-      const a = s / r; // bottom semicircle
-      return target.set(r * Math.cos(a), -len - r * Math.sin(a), 0);
+    const u = clamp01(t) * 4;
+    const k = Math.min(3, Math.floor(u));
+    const f = u - k;
+    switch (k) {
+      case 0:
+        return target.set(r, -len * f, 0); // right strand, downward
+      case 1: {
+        const a = Math.PI * f; // bottom semicircle
+        return target.set(r * Math.cos(a), -len - r * Math.sin(a), 0);
+      }
+      case 2:
+        return target.set(-r, -len + len * f, 0); // left strand, upward
+      default: {
+        const a = Math.PI * f; // top semicircle
+        return target.set(-r * Math.cos(a), r * Math.sin(a), 0);
+      }
     }
-    s -= arc;
-    if (s < len) return target.set(-r, -len + s, 0); // left strand, upward
-    s -= len;
-    const a = s / r; // top semicircle
-    return target.set(-r * Math.cos(a), r * Math.sin(a), 0);
+  }
+
+  /** Identity: keep the quarter parametrisation instead of equal arc-length spacing. */
+  getUtoTmapping(u: number): number {
+    return clamp01(u);
   }
 }
 

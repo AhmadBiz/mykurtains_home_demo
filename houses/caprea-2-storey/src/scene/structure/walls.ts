@@ -23,7 +23,7 @@ import { K, paintKey } from './keys';
  * Seam hygiene: faces created by internal splits are not emitted (they would share edges with the
  * neighbouring piece's faces and flicker), the reveals of an opening are explicit quads covering
  * just the opening's height, wall ends are extended by half the thickness to close corners (end
- * faces at outside corners take the facade material so the residual 2 mm sliver is invisible), and
+ * faces at outside corners take the facade material so the residual 6 mm sliver is invisible), and
  * an end is pulled back when the adjoining wall has an opening right at that corner (front door
  * next to the vestibule jog).
  */
@@ -32,6 +32,8 @@ const WARM_WHITE = '#efe9df';
 const FLOOR_BAND = 0.26;
 const BAND_LIP = 0.02;
 const SKIRT_DEPTH = 0.5;
+/** Wall ends stop this far short of the adjoining wall's outer face (keeps hidden faces out of z-fighting range). */
+const CORNER_PULLBACK = 0.006;
 const EPS = 1e-3;
 
 /** A rectangular wall piece: local x range along a→b and WORLD y range. */
@@ -165,7 +167,7 @@ function roomBoundaryCuts(w: WallDef, g: WallGeom, level: LevelId): number[] {
  * end is pulled back to that wall's far face so this wall does not intrude into the opening.
  */
 function endExtension(w: WallDef, g: WallGeom, end: 'a' | 'b'): number {
-  let ext = Math.max(0, w.thickness / 2 - 0.002);
+  let ext = Math.max(0, w.thickness / 2 - CORNER_PULLBACK);
   const P = end === 'a' ? w.a : w.b;
   for (const other of HOUSE.walls) {
     if (other.id === w.id || other.kind === 'railing') continue;

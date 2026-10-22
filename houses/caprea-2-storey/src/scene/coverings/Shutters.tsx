@@ -22,7 +22,9 @@
  *   left  : T(−innerW/2, 0, HINGE_Z) · rotY(−swing)
  *   right : T(+innerW/2, 0, HINGE_Z) · rotY(+swing) · rotZ(π)      (a rotation, never a mirror,
  *           so instanced winding / normals stay correct; the tilt sense is negated to compensate)
- *   inner : outer · T(W, 0, D/2) · rotY(−fold) · T(0, 0, −D/2)      (folds about the front edge)
+ *   inner : outer · T(W, 0, D/2) · rotY(+fold) · T(0, 0, −D/2)      (folds about the front edge;
+ *           fold = 2 × swing keeps its free end on the wall plane, so the pair forms a V whose
+ *           apex is the fold hinge out in the room)
  *
  * Material: catalogue hex, roughness 0.6; 'oak' gets a procedural grain using the accent.
  * Local frame (see ./types.ts): origin = centre of the opening on the interior wall face,
@@ -191,7 +193,7 @@ export function Shutters(props: CoveringProps) {
         // inner panel folds about the front edge of the outer panel's inner stile
         _panelMats[1]
           .copy(outer)
-          .multiply(compose(_mA, panelW, 0, PANEL_D / 2, 0, -fold, 0))
+          .multiply(compose(_mA, panelW, 0, PANEL_D / 2, 0, fold, 0))
           .multiply(compose(_mB, 0, 0, -PANEL_D / 2));
       }
       // rotZ(π) on the right-hand side mirrors the sense of a rotation about X
