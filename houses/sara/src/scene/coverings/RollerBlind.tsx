@@ -12,9 +12,14 @@
  *     blind is raised; glimpsed through the slot from below),
  *   - the fabric sheet leaves the FRONT of the roll (reverse roll): its top is bent around the
  *     tube (a strip of 8 quads hugging the cylinder), runs to the slot and hangs flat to the hem
- *     bar. Linen weave normal / roughness maps repeat every 0.2 m (UVs in metres, continuous
- *     around the bend, metric on the roll too); light-filtering / screen colours are 70 % opaque
- *     so the weave shows as a moiré against the light, blackouts opaque,
+ *     bar. UVs are metric (continuous around the bend, metric on the roll too). Two fabrics:
+ *       · screen / light-filtering colours are a woven sheet: the linen normal / roughness maps
+ *         at a 0.45 m tile (offset per blind so neighbouring windows never show the same seam),
+ *         55 % opaque so the garden reads THROUGH it rather than reflected in it, with only a
+ *         faint, very rough sheen;
+ *       · blackout / opaque colours are a PVC-coated sheet: the weave normal all but off, a plain
+ *         roughness of 0.75, no sheen.
+ *     Both carry a 2 m value-noise albedo mottle at ±1.5 % so the sheet is never one flat value,
  *   - an anodised aluminium hem bar the fabric runs through: brushed (anisotropic along its
  *     axis), reflecting the indoor environment rather than the sky,
  *   - a nickel bead chain loop (instanced 4 mm beads, 6 mm pitch) hanging from the right end
@@ -31,6 +36,7 @@ import * as THREE from 'three';
 import { useLayoutEffect, useMemo } from 'react';
 import { useIndoorEnvironment } from '../Lighting';
 import { usePbr } from '../materials';
+import type { PbrSet } from '../materials';
 import type { CoveringProps } from './types';
 import {
   BEAD,
@@ -46,10 +52,12 @@ import {
   lerp,
   makeFinish,
   mergeParts,
+  mottled,
   mullionFrontZ,
   roundedBox,
   useDisposable,
   useInstancedMesh,
+  uvJitter,
 } from './slats';
 
 /** Cassette profile (y × z section), extruded along x between the end caps. */
@@ -89,8 +97,15 @@ const ROWS = ARC_ROWS + 3;
 const BEND_LEN = 0.05;
 /** The straight part of the sheet starts this far below the cassette (inside the slot box). */
 const EXIT_DROP = 0.002;
-/** Weave tiles every 0.2 m (UVs are metric). */
-const WEAVE_REPEAT: [number, number] = [5, 5];
+/** The weave tiles every 0.45 m (UVs are metric): big enough that its seams never form a lattice across a sheet. */
+const WEAVE_TILE = 0.45;
+const WEAVE_REPEAT: [number, number] = [1 / WEAVE_TILE, 1 / WEAVE_TILE];
+/** Screen / light-filtering sheet: woven, 55 % opaque, a faint very rough sheen. */
+const SCREEN_NORMAL = 0.6;
+const SCREEN_OPACITY = 0.55;
+/** Blackout sheet: PVC-coated, the weave barely there under the coating, plain roughness, no sheen. */
+const COATED_NORMAL = 0.15;
+const COATED_ROUGHNESS = 0.75;
 
 const HALF_H = CASSETTE_H / 2;
 const HALF_D = CASSETTE_D / 2;
@@ -222,23 +237,35 @@ export function RollerBlind(props: CoveringProps) {
 
   // ---- materials ------------------------------------------------------------------------------
   const env = useIndoorEnvironment();
-  const weave = usePbr('fabric_pattern_05', { repeat: WEAVE_REPEAT, normalScale: 1 });
+  // The weave tile is offset per blind (from the window's size) so two windows never show the
+  // same seam at the same place; the coated sheet keeps the normal map at a trace and drops the
+  // roughness map (a PVC coating is one plain roughness).
+  const jitter = useMemo(() => uvJitter(props.width, props.height, props.sill, props.reveal), [props.width, props.height, props.sill, props.reveal]);
+  const weave = usePbr('fabric_pattern_05', translucent ? { repeat: WEAVE_REPEAT, normalScale: SCREEN_NORMAL, offset: jitter } : { repeat: WEAVE_REPEAT, normalScale: COATED_NORMAL });
+  const maps = useMemo<PbrSet>(() => (translucent ? weave : { ...weave, roughnessMap: undefined }), [weave, translucent]);
   const fabric = useDisposable(
     () =>
-      makeFinish({
-        color: color.hex,
-        maps: weave,
-        roughness: 1,
-        side: THREE.DoubleSide,
-        opacity: translucent ? 0.7 : 1,
-        sheen: 0.25,
-        sheenColor: '#ffffff',
-        sheenRoughness: 0.9,
-        envMapIntensity: 0.7,
-      }),
-    [color.hex, weave, translucent],
+      mottled(
+        translucent
+          ? makeFinish({
+              color: color.hex,
+              maps,
+              roughness: 1,
+              side: THREE.DoubleSide,
+              opacity: SCREEN_OPACITY,
+              sheen: 0.15,
+              sheenColor: '#ffffff',
+              sheenRoughness: 0.95,
+              envMapIntensity: 0.5,
+            })
+          : makeFinish({ color: color.hex, maps, roughness: COATED_ROUGHNESS, side: THREE.DoubleSide, envMapIntensity: 0.6 }),
+      ),
+    [color.hex, maps, translucent],
   );
-  const rolled = useDisposable(() => makeFinish({ color: color.hex, maps: weave, roughness: 1, envMapIntensity: 0.7 }), [color.hex, weave]);
+  const rolled = useDisposable(
+    () => mottled(makeFinish({ color: color.hex, maps, roughness: translucent ? 1 : COATED_ROUGHNESS, envMapIntensity: 0.6 })),
+    [color.hex, maps, translucent],
+  );
   // Brushed anodised aluminium: the grain runs along the bar (U of the metric box mapping = X).
   const barMat = useDisposable(() => {
     const m = makeFinish({ color: dark ? '#3a3b3e' : '#ecebe7', roughness: 0.3, metalness: 0.9, envMapIntensity: 0.9 });

@@ -21,8 +21,13 @@ preloadAllTextures();
  * fog is mixed in before tone mapping), so the lawn's far edge dissolves into the sky.
  */
 const FOG_COLOR = '#acb2c1';
-/** Exponential-squared density: ~5 % at 20 m, 26 % at 50 m, 82 % at 120 m (the lawn's edge), 98 % at 180 m. */
-const FOG_DENSITY = 0.011;
+/**
+ * Exponential-squared density: ~5 % at 50 m, 25 % at 120 m, 60 % at 210 m — a clear day. 0.011
+ * (18 % at 40 m, 43 % at 68 m, 82 % at 120 m) was a misty morning under a sky of crisp cumulus, and
+ * dissolved every backdrop into a flat wash from 40 m out; the far lawn's edge is for the exterior
+ * module's horizon geometry to hide, not the fog.
+ */
+const FOG_DENSITY = 0.0045;
 
 type GroupRef = RefObject<THREE.Group | null>;
 

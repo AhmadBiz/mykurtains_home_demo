@@ -17,6 +17,7 @@ import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { usePbr } from '../materials';
 import type { PbrSet } from '../materials';
+import { ignorePunctualLights } from '../windows/materials';
 
 export type MatKey =
   // wood
@@ -402,8 +403,9 @@ function createResolver(t: Sets): FurnitureMaterials {
         return phys({ color: '#c9ccd0', roughness: 0.35, metalness: 0.9, anisotropy: 0.6, envMapIntensity: 1.1 });
       case 'glass':
         // Shower screens / porthole: near-black pane blended as `reflection + 0.9 × view` (see
-        // windows/materials.ts) instead of a lit pale-blue wash over the tiles behind.
-        return phys({
+        // windows/materials.ts) instead of a lit pale-blue wash over the tiles behind. Point lights
+        // are ignored (ignorePunctualLights) so the room fixtures do not glint as pinpoints.
+        return ignorePunctualLights(phys({
           color: '#0b0f12',
           transparent: true,
           opacity: 0.1,
@@ -417,14 +419,14 @@ function createResolver(t: Sets): FurnitureMaterials {
           side: THREE.DoubleSide,
           depthWrite: false,
           envMapIntensity: 1.2,
-        });
+        }));
       case 'carGlass':
-        return phys({ color: '#1d2a33', transparent: true, opacity: 0.55, roughness: 0.03, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.3 });
+        return ignorePunctualLights(phys({ color: '#1d2a33', transparent: true, opacity: 0.55, roughness: 0.03, metalness: 0.2, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.3 }));
       case 'mirror':
         // a perfect reflector would only mirror the sky HDRI (no planar reflections), reading as a window
-        return metal('#cfd5db', 0.14, { envMapIntensity: 0.6 });
+        return ignorePunctualLights(metal('#cfd5db', 0.14, { envMapIntensity: 0.6 }));
       case 'screen':
-        return std({ color: '#06070a', roughness: 0.1, metalness: 0.2, envMapIntensity: 1.2 });
+        return ignorePunctualLights(std({ color: '#06070a', roughness: 0.1, metalness: 0.2, envMapIntensity: 1.2 }));
       case 'plasticBlack':
         return std({ color: '#17181a', roughness: 0.5, metalness: 0.05 });
       case 'appliance':

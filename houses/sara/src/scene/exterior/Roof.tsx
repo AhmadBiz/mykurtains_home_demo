@@ -10,9 +10,9 @@ import { useMemo } from 'react';
 import { LEVEL_BY_ID } from '../../data/geometry';
 import { FT } from '../../data/types';
 import { useStore } from '../../store/useStore';
-import { GRADE_Y } from './data';
-import { cylinderBetween, gridBoundary, gridPlaneGeometry, growRect, halfPipeUnit, mergeAll, metreBox, place, rectUnionGrid, slopedBox } from './geom';
-import type { Rect, Vec3 } from './geom';
+import { EXT_HALF_WALL, GRADE_Y } from './data';
+import { cylinderBetween, edgeOutwardNormal, gridBoundary, gridPlaneGeometry, growRect, halfPipeUnit, mergeAll, metreBox, place, rectUnionGrid, slopedBox } from './geom';
+import type { Rect, Vec2, Vec3 } from './geom';
 import { buildRoofSurface } from './roof';
 import { SLATE_TILE, useSlateTextures, useWhiteTrim } from './materials';
 import { soffitVentTexture } from './textures';
@@ -31,19 +31,22 @@ const ROOF_RECTS_FT: Rect[] = [
   [20.5, 12.5, 33.5, 20.5],
 ];
 /** Eave overhang (feet) — on the plan's 0.5 ft module so the roof grid stays exact. */
-const EAVE_FT = 1.5;
+const EAVE_FT = 2.0;
 /**
- * 6:12. A 4:12 roof (18°) hides entirely behind its own fascia from anywhere closer than ~16 m at
- * eye level (the eave is 5.3 m above the eye), which is why the roof never read from the street;
- * 6:12 is also the usual pitch for a two-storey Québec house.
+ * 8:12. A 6:12 roof with a 1.5 ft eave showed only as a thin grey sliver above the fascia from
+ * the street (the eave is 5.3 m above the eye) and as a flat lid from the rear garden; at 8:12
+ * with a 2 ft eave the slope is visible from eye level at 12–15 m and the ridge / hip caps read.
  */
-const SLOPE = 0.5;
+const SLOPE = 2 / 3;
 const CELL_FT = 0.25;
 const FASCIA_T = 0.03;
-const FASCIA_H = 0.14;
+const FASCIA_H = 0.19;
 const FASCIA_ABOVE = 0.015; // lip above the slate edge
 /** Soffit depth under the eave line: stays above the upper ceiling (wallTop − ceiling = 0.15 m). */
 const SOFFIT_DROP = 0.12;
+/** 1×6 frieze board on the wall under the soffit, 2 cm proud of the siding. */
+const FRIEZE_H = 0.14;
+const FRIEZE_T = 0.02;
 const GUTTER_R = 0.065;
 const PIPE_R = 0.04;
 
@@ -110,6 +113,18 @@ export function HipRoofs() {
         fascia.push(place(metreBox(FASCIA_T, FASCIA_H, len), [inner, fy, mid]));
         gutters.push(halfPipeUnit(GUTTER_R).rotateY(Math.PI / 2).scale(1, 1, gLen).translate(gAt, gy, mid));
       }
+    }
+    // frieze: a board along every upper-storey wall face, just under the soffit
+    const outline = LEVEL_BY_ID.upper.outline as Vec2[];
+    const fz = eaveY - SOFFIT_DROP - FRIEZE_H / 2;
+    for (let i = 0; i < outline.length; i++) {
+      const a = outline[i];
+      const b = outline[(i + 1) % outline.length];
+      const [nx, nz] = edgeOutwardNormal(outline, i);
+      const off = EXT_HALF_WALL + FRIEZE_T / 2;
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]) + 2 * (EXT_HALF_WALL + FRIEZE_T); // overlaps close the corners
+      const mid: Vec3 = [(a[0] + b[0]) / 2 + nx * off, fz, (a[1] + b[1]) / 2 + nz * off];
+      fascia.push(place(Math.abs(nx) > 0.5 ? metreBox(FRIEZE_T, FRIEZE_H, len, { swap: true }) : metreBox(len, FRIEZE_H, FRIEZE_T), mid));
     }
     return { soffitGeom: gridPlaneGeometry(grid, eaveY - SOFFIT_DROP, 'down'), fasciaGeom: mergeAll(fascia), gutterGeom: mergeAll(gutters) };
   }, [rects, eaveY]);

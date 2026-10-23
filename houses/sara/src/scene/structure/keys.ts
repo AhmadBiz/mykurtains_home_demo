@@ -17,6 +17,8 @@ export const K = {
   paintLight: 'paint:#f1eee8',
   /** White semi-gloss painted trim: baseboards, crown, casings, risers, stringers, balusters. */
   trim: 'trim',
+  /** Exterior painted trim (matches the fascia / columns): rim band, corner boards, frieze, drip caps. */
+  extTrim: 'extTrim',
   /** Oak: handrails, railing top rails, newel caps. */
   oak: 'oak',
   /** Dark stained wood: stair treads and landings. */

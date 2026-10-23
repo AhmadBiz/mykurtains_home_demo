@@ -4,6 +4,7 @@ import type { LevelId } from '../../data/types';
 import { BucketSet } from './bucket';
 import type { MergedPart } from './bucket';
 import { addDoors } from './doors';
+import { addExteriorTrim } from './exteriorTrim';
 import { addFloorFinishes, buildCeilings, buildSlabs } from './floors';
 import { addStairs } from './stairs';
 import { addTrim } from './trim';
@@ -29,6 +30,7 @@ export function getStructure(): Record<LevelId, LevelStructure> {
   if (cache) return cache;
   const sets: Record<LevelId, BucketSet> = { basement: new BucketSet(), ground: new BucketSet(), upper: new BucketSet() };
   addWalls(sets);
+  addExteriorTrim(sets);
   addTrim(sets);
   addFloorFinishes(sets);
   addStairs(sets);

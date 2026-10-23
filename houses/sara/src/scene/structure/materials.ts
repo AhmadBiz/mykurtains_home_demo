@@ -2,8 +2,9 @@ import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { usePbr } from '../materials';
 import type { PbrSet } from '../materials';
+import { applyIndoorEnvironment, useIndoorEnvironment } from '../Lighting';
 import { K, wallTileFloorY } from './keys';
-import { makeSiding, makeSubwayTile } from './procedural';
+import { BLOTCH_TILE, makeBlotchNoise, makeSiding, makeSubwayTile } from './procedural';
 import type { CanvasSet } from './procedural';
 
 /**
@@ -47,6 +48,15 @@ const BRICK_TILE = 1.2;
  */
 const PLASTER_TILE = 0.6;
 const CEILING_TILE = 0.8;
+/** Orange-peel strength: strong enough for raking window / fixture light to reveal it (the ceiling half). */
+const PAINT_NORMAL = 1.6;
+const CEILING_NORMAL = 0.8;
+/**
+ * Matt emulsion reads at roughness ≈ 0.68; the plaster roughness map (mean 0.907) multiplies the
+ * value, so the factors are set for that effective result: 0.75 → 0.68 walls, 0.9 → 0.82 ceilings.
+ */
+const PAINT_ROUGHNESS = 0.75;
+const CEILING_ROUGHNESS = 0.9;
 /**
  * Real wall paints reflect 75–80 %; the room chips in HOUSE (#efe9df and friends) are 85 %+ and
  * clip to flat white around the windows. Every paint is rendered ~10 % darker in linear light
@@ -54,10 +64,21 @@ const CEILING_TILE = 0.8;
  */
 const PAINT_ALBEDO = new THREE.Color(0.9, 0.89, 0.87);
 const CEILING_COLOR = '#ededea';
-/** The sky IBL is not occluded by the walls: interior paint / tile gets a lower envMapIntensity than the facades (0.8). */
-const PAINT_ENV = 0.4;
-const CEILING_ENV = 0.45;
+/**
+ * Interior paint reflects the INDOOR environment (Lighting.tsx RoomEnvironment: soft boxes on
+ * grey walls) instead of the sky, which from inside is one flat blue-grey tone and gave the
+ * orange-peel nothing to catch. The slab (seen from outside / in the dollhouse) keeps the sky at 0.8.
+ */
+const PAINT_ENV = 0.6;
+const CEILING_ENV = 0.5;
 const TILE_ENV = 0.5;
+/**
+ * Second octave of the paint: drywall-mud patches and roller marks as a ±3 % albedo and ±0.08
+ * roughness modulation (procedural.ts BLOTCH_TILE); ceilings at half strength. The factors
+ * multiply the [-0.5, 0.5] noise sampled in the shader.
+ */
+const PAINT_BLOTCH = { albedo: 0.06, rough: 0.16 };
+const CEILING_BLOTCH = { albedo: 0.03, rough: 0.08 };
 
 interface Sets {
   brick: PbrSet;
@@ -77,10 +98,34 @@ function paintColor(hex: string): THREE.Color {
   return new THREE.Color(hex).multiply(PAINT_ALBEDO);
 }
 
-function createResolver(t: Sets): StructureMaterials {
+/**
+ * Multiplies the material's albedo and offsets its roughness by the blotch noise, sampled in the
+ * geometry's world-metre UVs at BLOTCH_TILE. Every hooked material shares one program variant
+ * (the strengths are uniforms, the cache key is constant).
+ */
+function installBlotch(m: THREE.MeshStandardMaterial, noise: THREE.Texture, strength: { albedo: number; rough: number }): void {
+  m.onBeforeCompile = (shader: THREE.WebGLProgramParametersWithUniforms) => {
+    shader.uniforms.blotchMap = { value: noise };
+    shader.uniforms.blotchScale = { value: 1 / BLOTCH_TILE };
+    shader.uniforms.blotchAlbedo = { value: strength.albedo };
+    shader.uniforms.blotchRough = { value: strength.rough };
+    shader.vertexShader =
+      'varying vec2 vBlotchUv;\nuniform float blotchScale;\n' +
+      shader.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n\tvBlotchUv = uv * blotchScale;');
+    shader.fragmentShader =
+      'varying vec2 vBlotchUv;\nuniform sampler2D blotchMap;\nuniform float blotchAlbedo;\nuniform float blotchRough;\n' +
+      shader.fragmentShader
+        .replace('#include <map_fragment>', '#include <map_fragment>\n\tfloat blotch = texture2D( blotchMap, vBlotchUv ).r - 0.5;\n\tdiffuseColor.rgb *= 1.0 + blotch * blotchAlbedo;')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\troughnessFactor = clamp( roughnessFactor + blotch * blotchRough, 0.02, 1.0 );');
+  };
+  m.customProgramCacheKey = () => 'blotch';
+}
+
+function createResolver(t: Sets, indoorEnv: THREE.Texture): StructureMaterials {
   const cache = new Map<string, THREE.Material>();
   let siding: CanvasSet | undefined;
   let subway: CanvasSet | undefined;
+  let blotch: THREE.CanvasTexture | undefined;
   /** Per-storey copies of the tile maps (shifted along V), disposed with the resolver. */
   const aligned: THREE.Texture[] = [];
   /** A copy of a procedural texture shifted along V so a course line lands on `y` (world metres). */
@@ -93,9 +138,17 @@ function createResolver(t: Sets): StructureMaterials {
   };
   const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ envMapIntensity: 0.8, ...p });
   const phys = (p: THREE.MeshPhysicalMaterialParameters) => new THREE.MeshPhysicalMaterial({ envMapIntensity: 0.8, ...p });
+  /** Interior paint: indoor reflections at the given intensity (set directly, not scaled), plus the blotch octave. */
+  const paint = (p: THREE.MeshStandardMaterialParameters, env: number, strength: { albedo: number; rough: number }): THREE.MeshStandardMaterial => {
+    const m = std({ ...p, envMapIntensity: env });
+    applyIndoorEnvironment(m, indoorEnv, 1);
+    blotch ??= makeBlotchNoise();
+    installBlotch(m, blotch, strength);
+    return m;
+  };
 
   const create = (key: string): THREE.Material => {
-    if (key.startsWith('paint:')) return std({ color: paintColor(key.slice(6)), ...t.plaster.props, roughness: 0.85, envMapIntensity: PAINT_ENV });
+    if (key.startsWith('paint:')) return paint({ color: paintColor(key.slice(6)), ...t.plaster.props, roughness: PAINT_ROUGHNESS }, PAINT_ENV, PAINT_BLOTCH);
     if (key.startsWith('floor:carpet:')) {
       const color = key.slice('floor:carpet:'.length);
       return phys({ color, ...t.carpet.props, roughness: 1, sheen: 0.35, sheenRoughness: 0.9, sheenColor: new THREE.Color(color).offsetHSL(0, 0, 0.12), envMapIntensity: 0.5 });
@@ -126,6 +179,9 @@ function createResolver(t: Sets): StructureMaterials {
         return std({ ...t.foundation.props, color: '#b9b7b2', roughness: 1 });
       case K.trim:
         return std({ color: '#f4f2ee', roughness: 0.45 });
+      case K.extTrim:
+        // painted exterior trim, the fascia / column white of exterior/data.ts COLORS.trim
+        return std({ color: '#f1eee7', roughness: 0.5 });
       case K.oak:
         return std({ ...t.oak.props, roughness: 0.75 });
       case K.tread:
@@ -133,8 +189,9 @@ function createResolver(t: Sets): StructureMaterials {
       case K.soffit:
         return std({ color: '#e9e6e0', roughness: 0.9 });
       case K.slab:
+        return std({ color: CEILING_COLOR, ...t.plasterCeiling.props, roughness: 0.95, envMapIntensity: 0.45 });
       case K.ceiling:
-        return std({ color: CEILING_COLOR, ...t.plasterCeiling.props, roughness: 0.95, envMapIntensity: CEILING_ENV });
+        return paint({ color: CEILING_COLOR, ...t.plasterCeiling.props, roughness: CEILING_ROUGHNESS }, CEILING_ENV, CEILING_BLOTCH);
       case 'floor:hardwood':
         return std({ ...t.hardwood.props, roughness: 0.85 });
       case 'floor:laminate':
@@ -195,18 +252,22 @@ function createResolver(t: Sets): StructureMaterials {
       aligned.length = 0;
       siding?.dispose();
       subway?.dispose();
+      blotch?.dispose();
       siding = undefined;
       subway = undefined;
+      blotch = undefined;
     },
   };
 }
 
 /** Loads (suspending) the structure's texture sets and returns the key → material resolver. */
 export function useStructureMaterials(): StructureMaterials {
-  const brick = usePbr('red_brick_03', { repeat: [1 / BRICK_TILE, 1 / BRICK_TILE], normalScale: 0.8 });
+  // 16× anisotropy (the renderer clamps to what it supports): the courses stay crisp on the
+  // reveals and returns seen at grazing angles from the porch and the driveway.
+  const brick = usePbr('red_brick_03', { repeat: [1 / BRICK_TILE, 1 / BRICK_TILE], normalScale: 0.8, anisotropy: 16 });
   const foundation = usePbr('concrete_wall_008', { size: [1, 1], normalScale: 0.6 });
-  const plaster = usePbr('white_plaster_02', { repeat: [1 / PLASTER_TILE, 1 / PLASTER_TILE], normalScale: 0.9 });
-  const plasterCeiling = usePbr('white_plaster_02', { repeat: [1 / CEILING_TILE, 1 / CEILING_TILE], normalScale: 0.4 });
+  const plaster = usePbr('white_plaster_02', { repeat: [1 / PLASTER_TILE, 1 / PLASTER_TILE], normalScale: PAINT_NORMAL });
+  const plasterCeiling = usePbr('white_plaster_02', { repeat: [1 / CEILING_TILE, 1 / CEILING_TILE], normalScale: CEILING_NORMAL });
   const hardwood = usePbr('wood_floor', { size: [1, 1] });
   const laminate = usePbr('laminate_floor_02', { size: [1, 1] });
   const tiles = usePbr('floor_tiles_06', { size: [1, 1] });
@@ -215,9 +276,10 @@ export function useStructureMaterials(): StructureMaterials {
   const tread = usePbr('dark_wood', { size: [1, 1], rotation: Math.PI / 2 });
   // kitchen_wood is the pack's lightest oak; its grain runs along V, rotated so it follows the rails
   const oak = usePbr('kitchen_wood', { size: [1, 1], rotation: Math.PI / 2 });
+  const indoorEnv = useIndoorEnvironment();
   const mats = useMemo(
-    () => createResolver({ brick, foundation, plaster, plasterCeiling, hardwood, laminate, tiles, concreteFloor, carpet, tread, oak }),
-    [brick, foundation, plaster, plasterCeiling, hardwood, laminate, tiles, concreteFloor, carpet, tread, oak],
+    () => createResolver({ brick, foundation, plaster, plasterCeiling, hardwood, laminate, tiles, concreteFloor, carpet, tread, oak }, indoorEnv),
+    [brick, foundation, plaster, plasterCeiling, hardwood, laminate, tiles, concreteFloor, carpet, tread, oak, indoorEnv],
   );
   useEffect(() => () => mats.dispose(), [mats]);
   return mats;

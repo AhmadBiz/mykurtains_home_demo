@@ -18,7 +18,8 @@ import { addRailing } from './railings';
  * at the room's tile line: glazed tile below it, the room's paint above.
  *
  * Extras drawn from the elevations:
- *  - a light rim board along the upper-storey floor line (covers the slab edge between brick and siding),
+ *  - a light rim board along the upper-storey floor line (covers the slab edge between brick and
+ *    siding); the corner boards, frieze and window drip caps of the siding storey are in exteriorTrim.ts,
  *  - a concrete foundation skirt under ground-floor exterior walls that have no basement wall
  *    below them (the unexcavated garage), down to below grade.
  *
@@ -34,7 +35,8 @@ import { addRailing } from './railings';
 
 const WARM_WHITE = '#efe9df';
 const FLOOR_BAND = 0.26;
-const BAND_LIP = 0.02;
+/** The rim board along the upper floor line stands this much proud of both facades (also the exterior trim thickness). */
+export const BAND_LIP = 0.02;
 const SKIRT_DEPTH = 0.5;
 const SKIRT_INSET = 0.005;
 const EPS = 1e-3;
@@ -400,7 +402,7 @@ export function addWalls(sets: Record<LevelId, BucketSet>): void {
       }
       if (hasBand && c.partnerExterior) {
         const band = cornerSpan(c, g.length, BAND_LIP, bandY0, bandY1);
-        if (band) emitCorner(sets.upper, band, c, w.thickness + 2 * BAND_LIP, K.trim, K.trim, K.trim, w, matrix);
+        if (band) emitCorner(sets.upper, band, c, w.thickness + 2 * BAND_LIP, K.extTrim, K.extTrim, K.extTrim, w, matrix);
       }
       if (hasSkirt) {
         const skirt = cornerSpan(c, g.length, -SKIRT_INSET, skirtY0, groundFloor);
@@ -411,7 +413,7 @@ export function addWalls(sets: Record<LevelId, BucketSet>): void {
     // ---- 3. rim board along the upper floor line ----
     if (hasBand) {
       for (const sp of cutSpans(xs, xe, bandY0, bandY1, cuts, false)) {
-        const keys: BoxKeys = { rest: K.trim };
+        const keys: BoxKeys = { rest: K.extTrim };
         if (sp.s <= xs + EPS && endHidden(endA, sp.y0, sp.y1)) keys.nx = '';
         if (sp.e >= xe - EPS && endHidden(endB, sp.y0, sp.y1)) keys.px = '';
         emitBox(sets.upper, keys, sp, w.thickness + 2 * BAND_LIP, w, matrix);

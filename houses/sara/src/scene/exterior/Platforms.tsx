@@ -1,5 +1,5 @@
 /**
- * Front porch (flagstone-topped split-block body, two trimmed PVC-kit columns, a flat ballasted
+ * Front porch (chamfered flagstone slab on a split-face block body, two trimmed PVC-kit columns, a flat ballasted
  * roof with a 1:48 fall, two-piece fascia, half-round gutter and a downspout), rear balcony (deck
  * boards, chamfered posts, rounded top rail, instanced black aluminium balusters, the same
  * covered roof on two columns) and the side-door landing. Bounds / heights come from
@@ -270,7 +270,8 @@ export function Porch() {
   const trim = useWhiteTrim();
   const roofVisible = useSmallRoofVisible();
   const bottom = GRADE_Y - 0.05;
-  const topGeom = useMemo(() => place(metreRoundedBox(x2 - x1, TOP_T, z2 - z1, 0.01, { offset: [0.5, 1.3] }), [(x1 + x2) / 2, y - TOP_T / 2, (z1 + z2) / 2]), [x1, x2, z1, z2, y]);
+  // slab edge chamfered 12 mm, standing 20 mm proud of the block body (a drip reveal under it)
+  const topGeom = useMemo(() => place(metreRoundedBox(x2 - x1, TOP_T, z2 - z1, CHAMFER, { offset: [0.5, 1.3] }, 2), [(x1 + x2) / 2, y - TOP_T / 2, (z1 + z2) / 2]), [x1, x2, z1, z2, y]);
   const bodyGeom = useMemo(() => place(metreBox(x2 - x1 - 0.04, y - TOP_T - bottom, z2 - z1 - 0.04), [(x1 + x2) / 2, (y - TOP_T + bottom) / 2, (z1 + z2) / 2]), [x1, x2, z1, z2, y, bottom]);
   const columnGeom = useMemo(
     () => mergeAll([...columnParts(x1 + COLUMN_INSET, z1 + COLUMN_INSET, y, ROOF_BOTTOM, COLUMN), ...columnParts(x1 + COLUMN_INSET, z2 - COLUMN_INSET, y, ROOF_BOTTOM, COLUMN)]),

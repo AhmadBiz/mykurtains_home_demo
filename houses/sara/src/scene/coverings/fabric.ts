@@ -9,13 +9,15 @@
  *
  * Texture convention: every fabric geometry built here carries UVs in METRES (u along the flat
  * fabric, v up from the hem) and the PBR sets repeat at the real-world scale of the weave
- * (FABRIC_TILE: 12 cm for the velvet pile, 25 cm for the linen) whatever the panel's size or
- * gathering, so the structure stays visible from 1–2 m instead of blurring into a few stripes.
+ * (FABRIC_TILE: 30 cm for the velvet nap, 50 cm — the texture's true scale — for the linen,
+ * turned by a few hundredths of a radian so a tile edge never lands as a horizontal band across
+ * the panel) whatever the panel's size or gathering, so the structure stays visible from 1–2 m
+ * instead of blurring into a few stripes or repeating as a line every fold.
  *
  * Reflections: fabric hangs inside the house, so every fabric material takes the indoor
  * environment (Lighting.tsx `useIndoorEnvironment`) as its envMap — seen from inside, the sky
- * HDRI is one flat tone, and the sheen lobes of velvet and voile need a varied environment to
- * flash at the crests of the folds.
+ * HDRI is one flat tone, and the broad sheen of velvet and the voile need a varied environment
+ * (the room environment's soft boxes) to brighten softly over the crests of the folds.
  */
 import * as THREE from 'three';
 import { useEffect, useMemo } from 'react';
@@ -147,10 +149,16 @@ const VELVET_IDS = new Set(['navy', 'forest']);
 /** Velvet for the two velvet catalogue colours, linen for everything else. */
 export const fabricKind = (colorId: string): FabricKind => (VELVET_IDS.has(colorId) ? 'velvet' : 'linen');
 
-/** Real-world size of one tile of the weave (m): a fine pile for the velvet, a visible linen weave. */
-export const FABRIC_TILE: Record<FabricKind, number> = { velvet: 0.12, linen: 0.25 };
-/** Default normal strength per fabric: the velvet pile is pushed harder than the linen weave. */
-const FABRIC_NORMAL: Record<FabricKind, number> = { velvet: 1.4, linen: 1 };
+/**
+ * Real-world size of one tile of the weave (m). Both textures are 50 cm tiles: the linen is used
+ * at its true scale; the velvet's nap is stretched to 30 cm and kept faint (FABRIC_NORMAL) so it
+ * reads as the soft mottle of a crushed pile rather than a salt-and-pepper grain over the panel.
+ */
+export const FABRIC_TILE: Record<FabricKind, number> = { velvet: 0.3, linen: 0.5 };
+/** Default normal strength per fabric. The velvet pile stays soft; makeDrapeMaterial lifts the linen weave on dark colours. */
+const FABRIC_NORMAL: Record<FabricKind, number> = { velvet: 0.5, linen: 1 };
+/** The linen tile is turned by this much (rad) so its edges never line up with the folds as a horizontal band. */
+const LINEN_ROTATION = 0.05;
 
 /**
  * Normal + roughness maps of the fabric (the colour comes from the catalogue), repeating every
@@ -159,19 +167,26 @@ const FABRIC_NORMAL: Record<FabricKind, number> = { velvet: 1.4, linen: 1 };
  */
 export function useFabricMaps(kind: FabricKind, normalScale = FABRIC_NORMAL[kind]): PbrSet {
   const repeat = 1 / FABRIC_TILE[kind];
-  return usePbr(kind === 'velvet' ? 'velour_velvet' : 'fabric_pattern_05', { repeat: [repeat, repeat], normalScale });
+  const velvet = kind === 'velvet';
+  return usePbr(velvet ? 'velour_velvet' : 'fabric_pattern_05', { repeat: [repeat, repeat], rotation: velvet ? 0 : LINEN_ROTATION, normalScale });
 }
 
 const WHITE = new THREE.Color('#ffffff');
 /** The colour mixed toward white by `amount` (0..1) — a linear mix, so it desaturates quickly. */
 export const lighten = (hex: string, amount: number): THREE.Color => new THREE.Color(hex).lerp(WHITE, amount);
 
+/** Relative luminance (linear light, 0..1) of an sRGB hex: #3c3f45 anthracite ≈ 0.05, #5b6670 slate ≈ 0.13, #8fa58a sage ≈ 0.35. */
+const luminance = (hex: string): number => {
+  const c = new THREE.Color(hex);
+  return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+};
+
 const _hsl = { h: 0, s: 0, l: 0 };
 /**
  * The colour of a velvet's sheen lobe: the hue kept, the lightness lifted by `lift` and the
- * saturation eased by `desaturate` (sRGB HSL), so navy velvet flashes a lighter steel navy at the
- * crests of its folds (#1f2a4a → ≈ #6a7aa8) instead of the near-white grey a plain mix toward
- * white gives (#cccdd0 at 0.6), which reads as satin / plastic.
+ * saturation eased by `desaturate` (sRGB HSL), so navy velvet brightens to a lighter steel navy
+ * over the crests of its folds (#1f2a4a → ≈ #556493 at lift 0.25) instead of the near-white grey a
+ * plain mix toward white gives (#cccdd0 at 0.6), which reads as satin / plastic.
  */
 export const sheenTint = (hex: string, lift: number, desaturate: number): THREE.Color => {
   const c = new THREE.Color(hex);
@@ -188,32 +203,46 @@ export interface DrapeMaterialOptions {
   side?: THREE.Side;
   /** Indoor reflection environment (Lighting.tsx `useIndoorEnvironment`); null keeps scene.environment. */
   envMap?: THREE.Texture | null;
+  /**
+   * Multiply the colour by the geometry's `color` attribute (the cloth-shade noise written by
+   * buildWavePanel). Only for geometries that carry one — a geometry without it renders black.
+   */
+  vertexColors?: boolean;
 }
 
 /**
  * Opaque fabric, two-sided, with the weave normal / roughness maps and the indoor environment:
- *  - linen: roughness 0.95, sheen 0.6 at sheenRoughness 0.5 in a tint slightly lighter than the colour;
- *  - velvet: roughness 0.55, sheen 1 at sheenRoughness 0.3 — a tight lobe in a lighter, slightly
- *    desaturated tint of the colour, so the crests of the ripple folds flash and the troughs stay
- *    dark, which is how real velvet reads. The ripple-fold geometry supplies the alternating
- *    normals; a broad lobe (0.6) only lifted the whole panel to one flat tone.
+ *  - linen: roughness 0.95, sheen 0.6 at sheenRoughness 0.5 in a tint slightly lighter than the
+ *    colour. On dark colours (relative luminance below 0.2 — anthracite, indigo, slate) the weave
+ *    normal contributes nothing to the diffuse and a dim sheen reads as one thin bright line on
+ *    each crest, so the treatment slides (fully at luminance ≤ 0.1) to: normal strength 1.6, so
+ *    the weave is read in the specular; sheenColor lightened by 0.45; roughness 0.9; sheenRoughness 0.7.
+ *  - velvet: roughness 0.85, sheen 0.8 at sheenRoughness 0.75 in a lighter, slightly desaturated
+ *    tint of the colour — one broad, soft sheen that brightens the crests of the ripple folds over
+ *    5–10 cm and lets the troughs stay dark, the crush coming from the indoor environment's soft
+ *    boxes (envMapIntensity 0.6) rather than a tight direct lobe, which drew a hard specular line
+ *    on every crest and read as foil.
  */
 export function makeDrapeMaterial(o: DrapeMaterialOptions): THREE.MeshPhysicalMaterial {
   const velvet = o.kind === 'velvet';
+  // 0 on mid / light linen → 1 on the darkest colours; the velvet keeps its own treatment
+  const dark = velvet ? 0 : 1 - smoothstep(0.1, 0.2, luminance(o.hex));
+  const normal = velvet ? o.maps.normalScale.x : lerp(o.maps.normalScale.x, 1.6, dark);
   return new THREE.MeshPhysicalMaterial({
     color: o.map ? '#ffffff' : o.hex,
     map: o.map ?? null,
+    vertexColors: o.vertexColors ?? false,
     normalMap: o.maps.normalMap ?? null,
-    normalScale: o.maps.normalScale,
+    normalScale: new THREE.Vector2(normal, normal),
     roughnessMap: o.maps.roughnessMap ?? null,
-    roughness: velvet ? 0.55 : 0.95,
+    roughness: velvet ? 0.85 : lerp(0.95, 0.9, dark),
     metalness: 0,
-    sheen: velvet ? 1 : 0.6,
-    sheenColor: velvet ? sheenTint(o.hex, 0.33, 0.14) : lighten(o.hex, 0.3),
-    sheenRoughness: velvet ? 0.3 : 0.5,
+    sheen: velvet ? 0.8 : 0.6,
+    sheenColor: velvet ? sheenTint(o.hex, 0.25, 0.14) : lighten(o.hex, lerp(0.3, 0.45, dark)),
+    sheenRoughness: velvet ? 0.75 : lerp(0.5, 0.7, dark),
     side: o.side ?? THREE.DoubleSide,
     envMap: o.envMap ?? null,
-    envMapIntensity: velvet ? 1 : 0.6,
+    envMapIntensity: 0.6,
   });
 }
 
@@ -303,12 +332,24 @@ export interface WaveParams {
 }
 
 /**
+ * Slow, smooth noise in −1..1 over the flat fabric (metres), periods 0.5–0.9 m — far above the
+ * 12 cm wave, so successive folds pick up slightly different shades instead of repeating identically.
+ */
+function clothNoise(u: number, v: number): number {
+  return 0.5 * Math.sin(u * 7.1 + v * 2.3 + 0.7) * Math.sin(v * 5.3 - u * 1.7 + 2.1) + 0.35 * Math.sin(u * 11.7 - v * 3.9 + 4.2) + 0.15 * Math.sin(v * 13.1 + u * 4.3 + 1.3);
+}
+/** Amplitude of the cloth-shade noise baked into the panel's vertex colours (±2 % lightness). */
+const CLOTH_SHADE = 0.02;
+
+/**
  * A ripple-fold panel: a PlaneGeometry in the XY plane (centred on the origin, facing +Z) whose
  * vertices follow a UNIFORM S-wave z = A·sin(2π·x/P) from the top edge to the hem (snap tape on
  * carriers — no pleated header, no flaring), with a faint breathing of the depth so the cloth
  * does not read as machined. Both side edges sit on carriers (zero crossings). UVs are in metres
  * along the flat fabric (its arc length) and up from the hem, so the weave compresses with the
- * panel. Smooth vertex normals. ≤ ~5 k vertices for the widest window of the house.
+ * panel. A `color` attribute carries a ±2 % lightness noise (clothNoise, in flat-fabric metres as
+ * well) for materials with vertexColors, so no two folds are lit identically. Smooth vertex
+ * normals. ≤ ~5 k vertices for the widest window of the house.
  */
 export function buildWavePanel(p: WaveParams): THREE.BufferGeometry {
   const covered = Math.max(0.02, finite(p.covered, 0.02));
@@ -330,6 +371,7 @@ export function buildWavePanel(p: WaveParams): THREE.BufferGeometry {
     arc[ix] = arc[ix - 1] + Math.hypot(dx, z - zPrev);
     zPrev = z;
   }
+  const shade = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
     const ix = i % cols;
     const u = ix / segX; // 0 = left edge, 1 = right edge
@@ -338,9 +380,14 @@ export function buildWavePanel(p: WaveParams): THREE.BufferGeometry {
     const breathe = 1 + 0.04 * Math.sin(v * 7.3 + u * waves * 1.9) * Math.sin(v * Math.PI);
     pos.setZ(i, amplitude * breathe * Math.sin(phase));
     uv.setXY(i, arc[ix], v * height);
+    const s = 1 + CLOTH_SHADE * clothNoise(arc[ix], v * height);
+    shade[3 * i] = s;
+    shade[3 * i + 1] = s;
+    shade[3 * i + 2] = s;
   }
   pos.needsUpdate = true;
   uv.needsUpdate = true;
+  geo.setAttribute('color', new THREE.BufferAttribute(shade, 3));
   geo.computeVertexNormals();
   geo.computeBoundingSphere();
   return geo;

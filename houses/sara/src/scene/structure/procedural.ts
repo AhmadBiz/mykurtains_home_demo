@@ -288,3 +288,71 @@ export function makeSubwayTile(): CanvasSet {
 
   return makeSet(a, n, ro, TILE_REPEAT);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Paint blotches: the large-scale variation of a rolled wall (drywall-mud patches, roller marks)
+// ---------------------------------------------------------------------------------------------
+
+/** World size (m) of one repeat of the blotch noise. */
+export const BLOTCH_TILE = 2.4;
+const BLOTCH_PX = 64;
+
+/** Periodic value noise on a `cells` × `cells` lattice (seamless over the canvas), values in [0, 1]. */
+function valueNoise(px: number, cells: number, seed: number): Float32Array {
+  const r = rng(seed);
+  const lattice = new Float32Array(cells * cells);
+  for (let i = 0; i < lattice.length; i++) lattice[i] = r();
+  const at = (cx: number, cy: number) => lattice[((cy + cells) % cells) * cells + ((cx + cells) % cells)];
+  const fade = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+  const out = new Float32Array(px * px);
+  for (let y = 0; y < px; y++) {
+    const fy = ((y + 0.5) / px) * cells;
+    const cy = Math.floor(fy);
+    const ty = fade(fy - cy);
+    for (let x = 0; x < px; x++) {
+      const fx = ((x + 0.5) / px) * cells;
+      const cx = Math.floor(fx);
+      const tx = fade(fx - cx);
+      const top = at(cx, cy) + (at(cx + 1, cy) - at(cx, cy)) * tx;
+      const bottom = at(cx, cy + 1) + (at(cx + 1, cy + 1) - at(cx, cy + 1)) * tx;
+      out[y * px + x] = top + (bottom - top) * ty;
+    }
+  }
+  return out;
+}
+
+/**
+ * A 64 px seamless value-noise texture (two octaves: ~30 cm and ~15 cm features at BLOTCH_TILE),
+ * normalised to the full [0, 1] range with mean ≈ 0.5. materials.ts samples it in the paint
+ * shader as ± albedo / ± roughness modulation (the second octave above the plaster normal map).
+ */
+export function makeBlotchNoise(): THREE.CanvasTexture {
+  const px = BLOTCH_PX;
+  const coarse = valueNoise(px, 8, 1717);
+  const fine = valueNoise(px, 16, 2929);
+  const n = new Float32Array(px * px);
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < n.length; i++) {
+    n[i] = coarse[i] * 0.65 + fine[i] * 0.35;
+    min = Math.min(min, n[i]);
+    max = Math.max(max, n[i]);
+  }
+  const ctx = canvas2d(px);
+  if (ctx) {
+    const img = ctx.createImageData(px, px);
+    const d = img.data;
+    for (let i = 0; i < n.length; i++) {
+      const v = Math.round(((n[i] - min) / (max - min || 1)) * 255);
+      d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v;
+      d[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  const tex = new THREE.CanvasTexture(ctx ? ctx.canvas : document.createElement('canvas'));
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.NoColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}

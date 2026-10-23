@@ -182,8 +182,8 @@ export const INDOOR_ENV_INTENSITY = 0.7;
 const indoorCache = new WeakMap<THREE.WebGLRenderer, THREE.Texture>();
 
 /**
- * A neutral studio-room PMREM (three's RoomEnvironment: grey walls, a few soft boxes) for the
- * reflections of INTERIOR metals, glass and gloss. Seen from inside the house the sky HDRI is a
+ * A neutral studio-room PMREM (three's RoomEnvironment: grey walls, a few soft boxes, its light
+ * panels clamped to INDOOR_PANEL_MAX) for the reflections of INTERIOR metals, glass and gloss. Seen from inside the house the sky HDRI is a
  * uniform blue-grey, which gives chrome, stainless and clearcoat nothing to reflect but one tone, so
  * they read as flat grey plastic. Built once per renderer (a few ms). Assign it as `material.envMap`
  * (with `envMapIntensity` ≈ INDOOR_ENV_INTENSITY) in the material resolvers of interior objects —
@@ -193,12 +193,34 @@ const indoorCache = new WeakMap<THREE.WebGLRenderer, THREE.Texture>();
 export function indoorEnvironment(gl: THREE.WebGLRenderer): THREE.Texture {
   let tex = indoorCache.get(gl);
   if (!tex) {
+    const room = new RoomEnvironment();
+    room.traverse((o) => clampPanel((o as THREE.Mesh).material));
     const pmrem = new THREE.PMREMGenerator(gl);
-    tex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    tex = pmrem.fromScene(room, 0.04).texture;
     pmrem.dispose();
+    room.dispose();
     indoorCache.set(gl, tex);
   }
   return tex;
+}
+
+/**
+ * Radiance ceiling for the RoomEnvironment's light panels. Stock they are 17–100 (emissive
+ * MeshLambert in r186, a scaled-colour MeshBasic before): 4 % Fresnel × 50 × 0.9 = 1.9 linear, so a
+ * clear pane in front of a wall mirrored them as a sheet of clipped white (the shower screen washed
+ * the slats behind it to 200–254 sRGB). At 8 the panels are still the brightest thing chrome and
+ * steel see, and no panel can clip through glass.
+ */
+const INDOOR_PANEL_MAX = 8;
+
+function clampPanel(material: THREE.Material | THREE.Material[] | undefined): void {
+  if (!material || Array.isArray(material)) return;
+  if (material instanceof THREE.MeshLambertMaterial) {
+    material.emissiveIntensity = Math.min(material.emissiveIntensity, INDOOR_PANEL_MAX);
+  } else if (material instanceof THREE.MeshBasicMaterial) {
+    const c = material.color;
+    c.setRGB(Math.min(c.r, INDOOR_PANEL_MAX), Math.min(c.g, INDOOR_PANEL_MAX), Math.min(c.b, INDOOR_PANEL_MAX));
+  }
 }
 
 /** Hook form of `indoorEnvironment` for the current Canvas. */

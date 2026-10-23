@@ -467,3 +467,110 @@ class StadiumCurve extends THREE.Curve<THREE.Vector3> {
 export function chainLoopGeometry(r: number, len: number, tube: number): THREE.TubeGeometry {
   return new THREE.TubeGeometry(new StadiumCurve(Math.max(0.004, r), Math.max(0.02, finite(len, 0.2))), 64, Math.max(0.0005, tube), 5, true);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Fabric sheet helpers (roller blind)
+// ---------------------------------------------------------------------------------------------
+/**
+ * A deterministic pseudo-random UV offset in [0, 1)² from a few numbers describing the part
+ * (its window's size, say), so identical weave tiles on neighbouring blinds do not line up while
+ * the component stays a pure function of its props (no Math.random at mount).
+ */
+export function uvJitter(...seed: number[]): [number, number] {
+  let h = 2166136261;
+  for (const v of seed) h = Math.imul(h ^ Math.round(finite(v, 0) * 1000), 16777619);
+  h >>>= 0;
+  const a = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0;
+  const b = Math.imul(a ^ (a >>> 13), 3266489909) >>> 0;
+  return [a / 4294967296, b / 4294967296];
+}
+
+/** World size (m) of one repeat of the fabric mottle, and the mean of its texel values. */
+export const MOTTLE_TILE = 2;
+export const MOTTLE_MEAN = 0.985;
+const MOTTLE_AMPLITUDE = 0.015;
+const MOTTLE_PX = 64;
+
+/** mulberry32: a tiny seeded PRNG so the tile is the same on every machine. */
+function seededRandom(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Periodic value noise on a `cells` × `cells` lattice sampled at px × px (seamless), values in [0, 1]. */
+function valueNoise(px: number, cells: number, seed: number): Float32Array {
+  const rnd = seededRandom(seed);
+  const lattice = new Float32Array(cells * cells);
+  for (let i = 0; i < lattice.length; i++) lattice[i] = rnd();
+  const at = (cx: number, cy: number) => lattice[((cy + cells) % cells) * cells + ((cx + cells) % cells)];
+  const fade = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+  const out = new Float32Array(px * px);
+  for (let y = 0; y < px; y++) {
+    const fy = ((y + 0.5) / px) * cells;
+    const cy = Math.floor(fy);
+    const ty = fade(fy - cy);
+    for (let x = 0; x < px; x++) {
+      const fx = ((x + 0.5) / px) * cells;
+      const cx = Math.floor(fx);
+      const tx = fade(fx - cx);
+      const top = at(cx, cy) + (at(cx + 1, cy) - at(cx, cy)) * tx;
+      const bottom = at(cx, cy + 1) + (at(cx + 1, cy + 1) - at(cx, cy + 1)) * tx;
+      out[y * px + x] = top + (bottom - top) * ty;
+    }
+  }
+  return out;
+}
+
+let mottleTexture: THREE.DataTexture | null = null;
+
+/**
+ * A seamless 64 px grey value-noise tile (two octaves: ~50 cm and ~25 cm features over
+ * MOTTLE_TILE metres) whose linear values are MOTTLE_MEAN ± MOTTLE_AMPLITUDE, for use as the
+ * albedo `map` of a plain fabric sheet so a metre of it is not one flat value — the ±1.5 %
+ * unevenness of a coated or woven sheet. It is an albedo multiplier rather than a lightMap
+ * because three ADDS a lightMap to the indirect irradiance (it cannot express a ±1.5 %
+ * modulation, only an extra glow); a material using it divides its colour by MOTTLE_MEAN so
+ * the mean stays the catalogue swatch. Sampled through the metric UVs (repeat 1 / MOTTLE_TILE).
+ * Module singleton (a 16 KB texture), never disposed.
+ */
+export function fabricMottle(): THREE.DataTexture {
+  if (mottleTexture) return mottleTexture;
+  const px = MOTTLE_PX;
+  const coarse = valueNoise(px, 4, 1301);
+  const fine = valueNoise(px, 8, 2707);
+  const dither = seededRandom(4201);
+  const data = new Uint8Array(px * px * 4);
+  for (let i = 0; i < px * px; i++) {
+    const n = coarse[i] * 0.7 + fine[i] * 0.3; // in [0, 1], mean ≈ 0.5
+    const k = MOTTLE_MEAN + MOTTLE_AMPLITUDE * (2 * n - 1);
+    // the signal spans only a few 8-bit steps: dither the rounding so no plateaus form
+    const v = clamp(Math.round(255 * k + dither() - 0.5), 0, 255);
+    data[4 * i] = v;
+    data[4 * i + 1] = v;
+    data[4 * i + 2] = v;
+    data[4 * i + 3] = 255;
+  }
+  const tex = new THREE.DataTexture(data, px, px, THREE.RGBAFormat, THREE.UnsignedByteType);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(1 / MOTTLE_TILE, 1 / MOTTLE_TILE);
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  tex.anisotropy = 4;
+  tex.colorSpace = THREE.NoColorSpace; // linear multipliers, not colours
+  tex.needsUpdate = true;
+  mottleTexture = tex;
+  return tex;
+}
+
+/** Gives a finish the fabric mottle as its albedo map, keeping its mean colour. Returns the material. */
+export function mottled<T extends THREE.MeshStandardMaterial>(m: T): T {
+  m.map = fabricMottle();
+  m.color.multiplyScalar(1 / MOTTLE_MEAN);
+  return m;
+}

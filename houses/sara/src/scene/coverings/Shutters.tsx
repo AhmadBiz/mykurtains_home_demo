@@ -15,8 +15,10 @@
  *     which keeps its free end sliding along the head track (the wall plane) exactly like the
  *     real mechanism; at open = 1 both panels stand stacked face to face beside the jamb,
  *   - brushed nickel hardware: hinge knuckles with their two leaves on every hinged edge (2, or
- *     3 on tall panels), and a magnet catch (plate on the frame head, magnet on the panel) at
- *     the meeting stiles.
+ *     3 on tall panels), and a magnetic catch at each meeting stile: a 20 × 10 × 3 mm magnet
+ *     block let 1 mm into the UNDERSIDE of the frame head and a 1 mm strike plate on the top
+ *     edge of the panel's top rail, 30 mm in from the meeting edge, touching when the panel is
+ *     closed (so the catch lives in the 3 mm gap, as it does, instead of on the face).
  *
  * Finishes: white / cream / grey semi-gloss paint (roughness 0.45, clearcoat 0.15), black
  * (roughness 0.5), 'oak' with a real wood map running along the stiles, rails and louvres.
@@ -90,6 +92,15 @@ const LEAF_W = 0.028;
 const LEAF_T = 0.0015;
 /** Hinge knuckles this far from the panel's top / bottom. */
 const HINGE_INSET = 0.12;
+/** Magnetic catch: magnet block (W along the frame, D through it, T down) and its strike plate. */
+const CATCH_W = 0.02;
+const CATCH_D = 0.01;
+const CATCH_T = 0.003;
+/** The block is let this deep into the head so only 2 mm stands proud, meeting the 1 mm plate in the 3 mm gap. */
+const CATCH_RECESS = 0.001;
+const STRIKE_T = 0.001;
+/** Catch centre this far in from the panel's meeting edge. */
+const CATCH_INSET = 0.03;
 
 interface Section {
   y0: number;
@@ -285,10 +296,14 @@ export function Shutters(props: CoveringProps) {
           }
         }
       }
-      // magnet catch at the meeting stile of the innermost panel: magnet on its top rail, plate on the frame head
+      // magnetic catch at the meeting stile of the innermost panel: the strike plate on the top
+      // edge of its top rail (the right-hand frame is turned by rotZ(π), so its world top is the
+      // canonical bottom), the magnet block let into the underside of the frame head above it
       const last = _panelMats[count - 1];
-      setInstanceMatrix(catches, ci++, _mOut.copy(last).multiply(compose(_mA, panelW - 0.035, panelH / 2 - RAIL / 2, PANEL_D / 2 + 0.003, 0, 0, 0, 0.02, 0.012, 0.006)));
-      setInstanceMatrix(catches, ci++, compose(_mOut, side * 0.035, frameH / 2 - FRAME_W / 2, FRONT_Z + LEAF_T / 2, 0, 0, 0, 0.022, 0.012, LEAF_T));
+      const topY = side < 0 ? panelH / 2 + STRIKE_T / 2 : -panelH / 2 - STRIKE_T / 2;
+      setInstanceMatrix(catches, ci++, _mOut.copy(last).multiply(compose(_mA, panelW - CATCH_INSET, topY, 0, 0, 0, 0, CATCH_W, STRIKE_T, CATCH_D)));
+      const meetX = openW / 2 - count * panelW; // world |x| of the meeting edge
+      setInstanceMatrix(catches, ci++, compose(_mOut, side * (meetX + CATCH_INSET), frameH / 2 - FRAME_W + CATCH_RECESS - CATCH_T / 2, HINGE_Z, 0, 0, 0, CATCH_W, CATCH_T, CATCH_D));
     }
     commitInstances(panelMeshes, pi);
     commitInstances(louvres, li);

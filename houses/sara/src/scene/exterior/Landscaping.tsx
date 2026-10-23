@@ -1,28 +1,31 @@
 /**
- * Trees (bark trunks with branches; crowns of noise-deformed overlapping sub-blobs under a shell
- * of alpha-tested leaf-cluster cards), conifers (one continuous jagged cone with drooping tiers
- * and needle-frond cards), shrubs and the clipped street hedge (lumpy plants with leaf cards),
- * a horizon tree line of crossed billboards on the rolling far lawn, field stones sunk in the
- * grade, a mailbox by the driveway and the plank fence on the property lines.
+ * Trees (tapered bark trunks with forking branches; crowns of dark noise-deformed sub-lumps —
+ * the shaded interior — under a deep shell of alpha-tested leaf-cluster cards that carry the lit
+ * tone), conifers (a dark jagged cone inside tiers of drooping needle fronds), shrubs on raised
+ * mulch beds, the clipped street hedge in sections, a horizon of mid-distance 3D trees and
+ * crossed billboards on the rolling far lawn backed by a continuous tree-line band, field stones
+ * sunk in the grade, a mailbox by the driveway and the plank fence on the property lines.
  *
- * Foliage is FOUR merged geometries (solid cores, cards, trunks, billboards), the rocks two, the
- * fence two. All relief is 3D value noise sampled in WORLD space (noise.ts) so overlapping blobs
- * agree where they meet. Keep-out zones: house footprint X -1.1..13.1 / Z -0.1..10.2 (+ beds),
- * driveway, walkway, street.
+ * Foliage is FIVE merged geometries (solid cores, hedge bodies, cards, trunks + stems, beds),
+ * the horizon two, the rocks two, the fence two. All relief is 3D value noise sampled in WORLD
+ * space (noise.ts) so overlapping blobs agree where they meet. Every leaf card carries the normal
+ * of the crown shell it sits on (geom.ts setNormal), so a crown shades as one surface: the lit
+ * side of a tree is lit on every card, the shade side dark on every card, like a wall.
+ * Keep-out zones: house footprint X -1.1..13.1 / Z -0.1..10.2 (+ beds), driveway, walkway, street.
  */
 import * as THREE from 'three';
 import { useMemo } from 'react';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { COLORS, GRADE_Y, RAMPS, STREET } from './data';
 import { TriangleSoup, UP, cylinderBetween, gridSurface, mergeAll, metreBox, metreRoundedBox, place } from './geom';
-import type { Vec2, Vec3 } from './geom';
-import { mulberry32 } from './textures';
-import { canopyOctaves, fbm3, noise3 } from './noise';
+import type { Rect, Vec2, Vec3 } from './geom';
+import { FAR_TREE_VARIANTS, mulberry32, treelineTexture } from './textures';
+import { fbm3, noise3 } from './noise';
 import type { Octave } from './noise';
 import { LAWN_CX, LAWN_CZ, lawnHeightAt } from './terrain';
 import { useDispose } from './hooks';
-import { LEAF_MAP_GAIN, PLANK_TILE, useBark, useBlackMetal, useFarTrees, useLeaf, useLeafCards, useMulch, usePlanks, useRock } from './materials';
-import { usePbr } from '../materials';
+import { LEAF_MAP_GAIN, PLANK_TILE, useBark, useBlackMetal, useFarTreeAtlas, useFarTrees, useHedgeLeaf, useLeaf, useLeafCards, useMulch, usePlankTextures, usePlanks, useRock } from './materials';
+import { SUN_DIR } from '../Lighting';
 
 export function Landscaping() {
   return (
@@ -49,6 +52,7 @@ const vU = new THREE.Vector3();
 const vV = new THREE.Vector3();
 const vT = new THREE.Vector3();
 const vD = new THREE.Vector3();
+const vS = new THREE.Vector3();
 
 /** Species tones for one plant: offsetHSL(±0.03, ±0.10, ±0.07), pre-multiplied by the leaf-map gain. */
 function tones(dark: string, light: string, rnd: Rnd): [THREE.Color, THREE.Color] {
@@ -68,6 +72,11 @@ interface Shade {
   /** Scale of the slow colour noise across the plant (its crown radius). */
   R: number;
   seed: number;
+}
+
+/** The solid cores are the shaded interior of a crown: the species' dark tone at 0.55–0.85× (the cards carry the lit tone). */
+function coreShade(s: Shade): Shade {
+  return { ...s, dark: s.dark.clone().multiplyScalar(0.55), light: s.dark.clone().multiplyScalar(0.85) };
 }
 
 /** Colour of a foliage vertex / card: the species tones mixed by height and a slow colour noise, darkened below aoY. */
@@ -140,8 +149,11 @@ function blob(b: BlobSpec): THREE.BufferGeometry {
 // ---- cards (alpha-tested quads): atlas u ranges of the two cluster types
 const ATLAS: Record<'leaf' | 'needle', Vec2> = { leaf: [0, 0.5], needle: [0.5, 1] };
 
-/** A card centred at p with in-plane axes u (atlas u, width w) and v (atlas v, height h); lit along u × v. */
-function addCardUV(soup: TriangleSoup, p: THREE.Vector3, u: THREE.Vector3, v: THREE.Vector3, w: number, h: number, kind: 'leaf' | 'needle', c: THREE.Color): void {
+/**
+ * A card centred at p with in-plane axes u (atlas u, width w) and v (atlas v, height h), wound
+ * along u × v; its vertices carry `shell`, the normal of the crown surface it belongs to.
+ */
+function addCardUV(soup: TriangleSoup, p: THREE.Vector3, u: THREE.Vector3, v: THREE.Vector3, w: number, h: number, kind: 'leaf' | 'needle', c: THREE.Color, shell: THREE.Vector3): void {
   vN.crossVectors(u, v).normalize();
   const ax = u.x * w * 0.5;
   const ay = u.y * w * 0.5;
@@ -151,6 +163,7 @@ function addCardUV(soup: TriangleSoup, p: THREE.Vector3, u: THREE.Vector3, v: TH
   const bz = v.z * h * 0.5;
   const [u0, u1] = ATLAS[kind];
   soup.setColor(c.r, c.g, c.b);
+  soup.setNormal([shell.x, shell.y, shell.z]);
   soup.quadUV(
     [p.x - ax - bx, p.y - ay - by, p.z - az - bz],
     [p.x + ax - bx, p.y + ay - by, p.z + az - bz],
@@ -164,8 +177,8 @@ function addCardUV(soup: TriangleSoup, p: THREE.Vector3, u: THREE.Vector3, v: TH
   );
 }
 
-/** A leaf-cluster card facing `n` (unit), spun by `spin` in its plane. */
-function addLeafCard(soup: TriangleSoup, p: THREE.Vector3, n: THREE.Vector3, size: number, spin: number, c: THREE.Color): void {
+/** A leaf-cluster card facing `n` (unit), spun by `spin` in its plane, lit with the `shell` normal. */
+function addLeafCard(soup: TriangleSoup, p: THREE.Vector3, n: THREE.Vector3, size: number, spin: number, c: THREE.Color, shell: THREE.Vector3): void {
   const helper = Math.abs(n.y) < 0.9 ? UP_V : X_V;
   vT.crossVectors(helper, n).normalize();
   vV.crossVectors(n, vT).normalize();
@@ -173,11 +186,12 @@ function addLeafCard(soup: TriangleSoup, p: THREE.Vector3, n: THREE.Vector3, siz
   const sn = Math.sin(spin);
   vU.copy(vT).multiplyScalar(cs).addScaledVector(vV, sn);
   vV.crossVectors(n, vU).normalize();
-  addCardUV(soup, p, vU, vV, size, size, 'leaf', c);
+  addCardUV(soup, p, vU, vV, size, size, 'leaf', c, shell);
 }
 
 interface Sink {
   solid: THREE.BufferGeometry[];
+  hedge: THREE.BufferGeometry[];
   trunks: THREE.BufferGeometry[];
   cards: TriangleSoup;
 }
@@ -194,19 +208,26 @@ interface CrownOptions {
   shade: Shade;
   detail: number;
   cards: number;
-  /** Card size (m) and how far outside the lump surface the cards sit. */
+  /** Card size (m); cards sit between `cardIn` (inside the lump surface, negative) and `cardOut` (proud of it). */
   cardSize: number;
+  cardIn: number;
   cardOut: number;
-  /** Cards below this world Y are dropped (buried in the bed / under the crown). */
+  /** Cards below this world Y are dropped (buried in the bed). */
   yMin: number;
-  /** Vertical centre of the crown and its radius, for the height tone. */
-  cy: number;
+  /** Centre of the crown, its radius and vertical squash: the shell normal and the height tone. */
+  centre: Vec3;
   R: number;
+  squash: number;
 }
 
-/** Solid lumps + a shell of leaf cards hugging their noisy surface (trees and shrubs). */
+/**
+ * Solid lumps (the dark interior) + a deep shell of leaf cards around their noisy surface, from
+ * 0.3 R inside it to 0.35 R proud of it, so no smooth sphere survives and the crown has depth
+ * (trees and shrubs). Cards are lit with the crown's shell normal and get lighter outward.
+ */
 function addCrown(sink: Sink, o: CrownOptions, rnd: Rnd): void {
-  for (const l of o.lumps) sink.solid.push(blob({ r: l.r, sy: l.sy, detail: o.detail, centre: l.c, octaves: o.octaves, shade: o.shade }));
+  const core = coreShade(o.shade);
+  o.lumps.forEach((l, i) => sink.solid.push(blob({ r: l.r, sy: l.sy, detail: i === 0 ? o.detail : Math.max(1, o.detail - 1), centre: l.c, octaves: o.octaves, shade: core })));
   for (let k = 0; k < o.cards; k++) {
     const l = o.lumps[Math.floor(rnd() * o.lumps.length)];
     randomDir(rnd, vD);
@@ -214,17 +235,25 @@ function addCrown(sink: Sink, o: CrownOptions, rnd: Rnd): void {
     const sy = l.c[1] + vD.y * l.r * l.sy;
     const sz = l.c[2] + vD.z * l.r;
     const kk = Math.max(0.4, 1 + fbm3(sx, sy, sz, o.octaves, o.shade.seed) / l.r);
-    const px = l.c[0] + vD.x * l.r * kk;
-    const py = l.c[1] + vD.y * l.r * l.sy * kk;
-    const pz = l.c[2] + vD.z * l.r * kk;
+    const depth = rnd();
+    const out = o.cardIn + (o.cardOut - o.cardIn) * depth;
+    const px = l.c[0] + vD.x * (l.r * kk + out);
+    const py = l.c[1] + vD.y * (l.r * l.sy * kk + out);
+    const pz = l.c[2] + vD.z * (l.r * kk + out);
     if (py < o.yMin) continue;
-    // buried inside a neighbouring lump: invisible, skip
-    if (o.lumps.some((m) => m !== l && Math.hypot(px - m.c[0], (py - m.c[1]) / m.sy, pz - m.c[2]) < m.r * 0.85)) continue;
-    vP.set(px + vD.x * o.cardOut, py + vD.y * o.cardOut, pz + vD.z * o.cardOut);
-    vN.set(vD.x + (rnd() - 0.5) * 0.9, vD.y + (rnd() - 0.5) * 0.9, vD.z + (rnd() - 0.5) * 0.9).normalize();
-    const t = THREE.MathUtils.clamp((vP.y - (o.cy - o.R)) / (2 * o.R), 0, 1);
-    leafColor(tmpColor, o.shade, vP.x, vP.y, vP.z, t);
-    addLeafCard(sink.cards, vP, vN, o.cardSize * (0.85 + rnd() * 0.3), rnd() * Math.PI * 2, tmpColor);
+    // deep inside a lump: invisible, skip
+    if (o.lumps.some((m) => Math.hypot(px - m.c[0], (py - m.c[1]) / m.sy, pz - m.c[2]) < m.r * 0.55)) continue;
+    vP.set(px, py, pz);
+    // shell normal: radial from the crown centre (vertically squashed), slightly jittered
+    vS.set(px - o.centre[0], (py - o.centre[1]) / o.squash, pz - o.centre[2]).normalize();
+    vS.x += (rnd() - 0.5) * 0.3;
+    vS.y += (rnd() - 0.5) * 0.3;
+    vS.z += (rnd() - 0.5) * 0.3;
+    vS.normalize();
+    vN.set(vS.x + (rnd() - 0.5) * 0.9, vS.y + (rnd() - 0.5) * 0.9, vS.z + (rnd() - 0.5) * 0.9).normalize();
+    const t = THREE.MathUtils.clamp((vP.y - (o.centre[1] - o.R)) / (2 * o.R), 0, 1);
+    leafColor(tmpColor, o.shade, vP.x, vP.y, vP.z, t).multiplyScalar(0.7 + 0.35 * depth);
+    addLeafCard(sink.cards, vP, vN, o.cardSize * (0.85 + rnd() * 0.3), rnd() * Math.PI * 2, tmpColor, vS);
   }
 }
 
@@ -234,6 +263,10 @@ interface TreeSpec {
   kind: 'round' | 'tall';
   /** Overall height (m). */
   h: number;
+  /** Grade under the trunk (default GRADE_Y: the flat lawn). */
+  y?: number;
+  /** Mid-distance level of detail: fewer, larger cards, coarser lumps, no branches. */
+  lod?: boolean;
 }
 
 const TREES: TreeSpec[] = [
@@ -249,64 +282,137 @@ const TREES: TreeSpec[] = [
   { x: 12, z: -6.5, kind: 'round', h: 6 },
 ];
 
-/** Trunk base: a little under the grade so nothing floats. */
-const TRUNK_BASE = GRADE_Y - 0.05;
+/** Trunk base below the grade so nothing floats. */
+const TRUNK_SINK = 0.05;
+const onStreet = (x: number) => x > -24 && x < -9;
 
-/** Round (deciduous) tree: trunk + 3 branches, 13–17 sub-blobs on a squashed 0.6R shell, 250–400 leaf cards. */
-function addRoundTree(sink: Sink, t: TreeSpec, rnd: Rnd, seed: number): void {
-  const [dark, light] = tones(COLORS.leafDark, COLORS.leafLight, rnd);
-  const R = t.h * 0.3;
-  const tr = 0.07 + t.h * 0.022;
-  const th = t.h * 0.36;
-  const yaw = rnd() * Math.PI * 2;
-  sink.trunks.push(cylinderBetween([t.x, TRUNK_BASE, t.z], [t.x, TRUNK_BASE + th + R * 0.5, t.z], tr * 1.15, 9, tr * 0.6));
-  const cy = TRUNK_BASE + th + R * 0.85;
-  for (let b = 0; b < 3; b++) {
-    const a = yaw + (b / 3) * Math.PI * 2 + rnd() * 0.6;
-    sink.trunks.push(cylinderBetween([t.x, TRUNK_BASE + th * 0.8, t.z], [t.x + Math.cos(a) * R * 0.5, cy + R * 0.3, t.z + Math.sin(a) * R * 0.5], tr * 0.45, 7, tr * 0.15));
+/** Sixteen real trees at 36–50 m on the rolling lawn (what the stair window frames), at the mid LOD. */
+const MID_TREES: TreeSpec[] = (() => {
+  const rnd = mulberry32(55);
+  const out: TreeSpec[] = [];
+  for (let k = 0; k < 16; k++) {
+    const ang = (k / 16) * Math.PI * 2 + rnd() * 0.3;
+    const r = 36 + rnd() * 14;
+    const x = LAWN_CX + Math.cos(ang) * r;
+    const z = LAWN_CZ + Math.sin(ang) * r;
+    if (onStreet(x)) continue;
+    out.push({ x, z, kind: rnd() < 0.35 ? 'tall' : 'round', h: 8 + rnd() * 4, y: lawnHeightAt(x, z), lod: true });
   }
-  const shade: Shade = { dark, light, aoY: cy - 0.3 * R, aoDepth: 0.6 * R, R, seed };
-  const lumps: Lump[] = [{ c: [t.x, cy, t.z], r: 0.6 * R, sy: 0.85 }];
-  const n = 12 + Math.floor(rnd() * 5);
-  for (let b = 0; b < n; b++) {
-    randomDir(rnd, vD);
-    lumps.push({ c: [t.x + vD.x * 0.6 * R, cy + vD.y * 0.48 * R, t.z + vD.z * 0.6 * R], r: R * (0.35 + rnd() * 0.15), sy: 0.8 + rnd() * 0.15 });
-  }
-  addCrown(sink, { lumps, octaves: canopyOctaves(R), shade, detail: 3, cards: 250 + Math.floor(rnd() * 150), cardSize: THREE.MathUtils.clamp(R * 0.3, 0.5, 0.7), cardOut: 0.1 * R, yMin: cy - 1.1 * R, cy, R }, rnd);
+  return out;
+})();
+
+/** Crown relief: 0.12 / 0.08 / 0.04 of R at 1.5R / 0.5R / 0.15R (≈ 0.25 R total, no lump keeps a spherical silhouette). */
+function crownOctaves(R: number): Octave[] {
+  return [
+    { wavelength: 1.5 * R, amplitude: 0.12 * R },
+    { wavelength: 0.5 * R, amplitude: 0.08 * R },
+    { wavelength: 0.15 * R, amplitude: 0.04 * R },
+  ];
 }
 
 /**
- * Conifer: one continuous cone r(y) = 0.19h·(1 − y/h)^0.9 with 9 twisting lobes (±10 %) and the
- * canopy noise, a skirt closing its underside, 11 drooping tiers (flat irregular blobs tucked
- * into the lobes so only branch ends poke out) and ~70 needle fronds per metre of height angled
- * 20–40° downward, which carry the silhouette. The trunk shows only under the bottom 12 % of h.
+ * Round (deciduous) tree: a trunk tapering from 0.035 h at grade (0.3 m root flare) to 0.012 h at
+ * the crown, 5–7 tapered branches forking once at 0.6 R and ending inside the crown, 15–19 dark
+ * sub-lumps of 0.25–0.35 R on a 0.65 R shell and 700–1000 cards of 0.9–1.3 m from 0.3 R inside
+ * the shell to 0.35 R proud of it, down to the underside.
+ */
+function addRoundTree(sink: Sink, t: TreeSpec, rnd: Rnd, seed: number): void {
+  const [dark, light] = tones(COLORS.leafDark, COLORS.leafLight, rnd);
+  const base = (t.y ?? GRADE_Y) - TRUNK_SINK;
+  const R = t.h * 0.3;
+  const th = t.h * 0.36;
+  const cy = base + th + R * 0.85;
+  const yaw = rnd() * Math.PI * 2;
+  const rGrade = 0.035 * t.h;
+  const rFlare = 0.025 * t.h;
+  const rCrown = 0.012 * t.h;
+  sink.trunks.push(cylinderBetween([t.x, base, t.z], [t.x, base + 0.3, t.z], rGrade, 10, rFlare));
+  sink.trunks.push(cylinderBetween([t.x, base + 0.3, t.z], [t.x, cy + 0.2 * R, t.z], rFlare, 10, rCrown));
+  if (!t.lod) {
+    const tr = 0.02 * t.h;
+    const n = 5 + Math.floor(rnd() * 3);
+    for (let b = 0; b < n; b++) {
+      const a = yaw + (b / n) * Math.PI * 2 + (rnd() - 0.5) * 0.7;
+      const elev = THREE.MathUtils.degToRad(25 + rnd() * 30);
+      const y0 = base + th * (0.75 + rnd() * 0.2);
+      const start: Vec3 = [t.x, y0, t.z];
+      const L1 = 0.6 * R;
+      const fork: Vec3 = [t.x + Math.cos(a) * Math.cos(elev) * L1, y0 + Math.sin(elev) * L1, t.z + Math.sin(a) * Math.cos(elev) * L1];
+      sink.trunks.push(cylinderBetween(start, fork, tr * 0.45, 7, tr * 0.22));
+      for (const s of [-1, 1]) {
+        const a2 = a + s * THREE.MathUtils.degToRad(20 + rnd() * 15);
+        const e2 = elev + THREE.MathUtils.degToRad((rnd() - 0.3) * 30);
+        const L2 = 0.35 * R;
+        const end: Vec3 = [fork[0] + Math.cos(a2) * Math.cos(e2) * L2, fork[1] + Math.sin(e2) * L2, fork[2] + Math.sin(a2) * Math.cos(e2) * L2];
+        sink.trunks.push(cylinderBetween(fork, end, tr * 0.22, 6, tr * 0.1));
+      }
+    }
+  }
+  const shade: Shade = { dark, light, aoY: cy - 0.3 * R, aoDepth: 0.6 * R, R, seed };
+  const lumps: Lump[] = [{ c: [t.x, cy, t.z], r: 0.6 * R, sy: 0.85 }];
+  const n = t.lod ? 9 : 15 + Math.floor(rnd() * 5);
+  for (let b = 0; b < n; b++) {
+    randomDir(rnd, vD);
+    lumps.push({ c: [t.x + vD.x * 0.65 * R, cy + vD.y * 0.5 * R, t.z + vD.z * 0.65 * R], r: R * (0.25 + rnd() * 0.1), sy: 0.85 + rnd() * 0.15 });
+  }
+  addCrown(
+    sink,
+    {
+      lumps,
+      octaves: crownOctaves(R),
+      shade,
+      detail: t.lod ? 2 : 3,
+      cards: t.lod ? 300 : 700 + Math.floor(rnd() * 300),
+      cardSize: THREE.MathUtils.clamp(R * 0.45, 0.9, 1.3) * (t.lod ? 1.7 : 1),
+      cardIn: -0.3 * R,
+      cardOut: 0.35 * R,
+      yMin: cy - 1.3 * R,
+      centre: [t.x, cy, t.z],
+      R,
+      squash: 0.85,
+    },
+    rnd,
+  );
+}
+
+/**
+ * Conifer: a DARK continuous cone r(y) = 0.19h·(1 − y/h)^0.9 (lobes ±4 %, light noise) that is
+ * only ever the shaded interior, and tiers every 0.4 m of 24–36 needle-frond cards 0.6–1.6 m
+ * long rooted between 0.3 r and 0.75 r from the axis, drooping 20–35°, their planes roughly
+ * horizontal (±20° roll) and darkened toward the trunk, which carry the whole silhouette. The
+ * trunk shows only under the bottom 12 % of h.
  */
 function addConifer(sink: Sink, t: TreeSpec, rnd: Rnd, seed: number): void {
   const [dark, light] = tones(COLORS.coniferDark, COLORS.coniferLight, rnd);
+  const base = (t.y ?? GRADE_Y) - TRUNK_SINK;
   const h = t.h;
   const R = 0.19 * h;
   const tr = 0.05 + h * 0.02;
-  sink.trunks.push(cylinderBetween([t.x, TRUNK_BASE, t.z], [t.x, TRUNK_BASE + h * 0.6, t.z], tr * 1.1, 8, tr * 0.3));
-  const y0 = TRUNK_BASE + 0.12 * h;
-  const octaves = canopyOctaves(R);
+  sink.trunks.push(cylinderBetween([t.x, base, t.z], [t.x, base + h * 0.6, t.z], tr * 1.1, 8, tr * 0.3));
+  const y0 = base + 0.12 * h;
+  const octaves: Octave[] = [
+    { wavelength: 0.5 * R, amplitude: 0.04 * R },
+    { wavelength: 0.15 * R, amplitude: 0.02 * R },
+  ];
   const shade: Shade = { dark, light, aoY: y0 + 0.2 * h, aoDepth: 0.35 * h, R, seed };
+  const core = coreShade(shade);
   const rad = (tt: number) => R * Math.pow(Math.max(0, 1 - tt), 0.9);
   const phase = rnd() * Math.PI * 2;
   /** Radius multiplier at angle a, world height wy, for a ring of radius r. */
   const kAt = (a: number, wy: number, r: number) => {
-    const lobes = 1 + 0.1 * Math.sin(9 * a + phase + (wy - TRUNK_BASE) * 2.5);
+    const lobes = 1 + 0.04 * Math.sin(9 * a + phase + (wy - base) * 2.5);
     const n = fbm3(t.x + Math.cos(a) * r, wy, t.z + Math.sin(a) * r, octaves, seed);
-    return Math.max(0.35, lobes + (1.6 * n) / Math.max(r, 0.3));
+    return Math.max(0.5, lobes + (0.6 * n) / Math.max(r, 0.3));
   };
-  const nu = 48;
-  const nv = 40;
+  const nu = t.lod ? 24 : 40;
+  const nv = t.lod ? 16 : 32;
   const rows: { y: number; r: number; t: number }[] = [
     { y: y0 - 0.06 * h, r: 0.1 * R, t: 0 },
-    { y: y0 - 0.03 * h, r: 0.65 * rad(0.12), t: 0 },
+    { y: y0 - 0.03 * h, r: 0.55 * rad(0.12), t: 0 },
   ];
   for (let j = 0; j <= nv - 2; j++) {
     const tt = 0.12 + (j / (nv - 2)) * 0.88;
-    rows.push({ y: TRUNK_BASE + tt * h, r: Math.max(0.012, rad(tt)), t: (tt - 0.12) / 0.88 });
+    rows.push({ y: base + tt * h, r: Math.max(0.012, 0.85 * rad(tt)), t: (tt - 0.12) / 0.88 });
   }
   sink.solid.push(
     gridSurface(
@@ -317,51 +423,39 @@ function addConifer(sink: Sink, t: TreeSpec, rnd: Rnd, seed: number): void {
         const row = rows[j];
         const r = row.r * kAt(a, row.y, row.r);
         const p: Vec3 = [t.x + Math.cos(a) * r, row.y, t.z + Math.sin(a) * r];
-        leafColor(tmpColor, shade, p[0], p[1], p[2], row.t);
+        leafColor(tmpColor, core, p[0], p[1], p[2], row.t);
         return { p, uv: [-a * R * 0.5, row.y], c: [tmpColor.r, tmpColor.g, tmpColor.b] };
       },
       true,
     ),
   );
-  const tiers = 11;
-  for (let l = 0; l < tiers; l++) {
-    const tt = 0.14 + (l / (tiers - 1)) * 0.74 + (rnd() - 0.5) * 0.03;
-    const r = (0.8 + rnd() * 0.2) * rad(tt);
-    const jitter = r * 0.3;
-    sink.solid.push(
-      blob({
-        r,
-        sy: 0.3 + rnd() * 0.12,
-        detail: 2,
-        centre: [t.x + (rnd() - 0.5) * jitter, TRUNK_BASE + tt * h, t.z + (rnd() - 0.5) * jitter],
-        octaves: [
-          { wavelength: 0.7 * r, amplitude: 0.32 * r },
-          { wavelength: 0.25 * r, amplitude: 0.1 * r },
-          { wavelength: 0.12 * r, amplitude: 0.04 * r },
-        ],
-        shade: { ...shade, seed: seed + 1 + l },
-      }),
-    );
-  }
-  const fronds = Math.round(70 * h);
-  for (let k = 0; k < fronds; k++) {
-    const tt = 0.13 + rnd() * 0.85;
-    const y = TRUNK_BASE + tt * h;
-    const r0 = Math.max(0.05, rad(tt));
-    const a = rnd() * Math.PI * 2;
-    const r = r0 * kAt(a, y, r0);
-    vD.set(Math.cos(a), 0, Math.sin(a));
-    vT.set(-Math.sin(a), 0, Math.cos(a));
-    const down = THREE.MathUtils.degToRad(30 + (rnd() - 0.5) * 20);
-    vU.copy(vD).multiplyScalar(Math.cos(down)).addScaledVector(UP_V, -Math.sin(down)).normalize();
-    const roll = (rnd() - 0.5) * THREE.MathUtils.degToRad(70);
-    vN.crossVectors(vU, vT);
-    vV.copy(vT).multiplyScalar(Math.cos(roll)).addScaledVector(vN, Math.sin(roll)).normalize();
-    const w = 0.55 * (0.8 + rnd() * 0.4);
-    const hh = 0.35 * (0.8 + rnd() * 0.4);
-    vP.set(t.x + vD.x * (r + 0.02), y, t.z + vD.z * (r + 0.02)).addScaledVector(vU, w * 0.4);
-    leafColor(tmpColor, shade, vP.x, vP.y, vP.z, (tt - 0.12) / 0.88);
-    addCardUV(sink.cards, vP, vU, vV, w, hh, 'needle', tmpColor);
+  const slopeUp = R / h; // the cone normal tilts up by dr/dy
+  const tierPitch = t.lod ? 0.8 : 0.4;
+  for (let y = y0 + 0.02 * h; y < base + 0.97 * h; y += tierPitch * (0.9 + rnd() * 0.2)) {
+    const tt = (y - base) / h;
+    const r0 = Math.max(0.06, rad(tt));
+    const n = t.lod ? 8 : 24 + Math.floor(rnd() * 12);
+    for (let k = 0; k < n; k++) {
+      const a = rnd() * Math.PI * 2;
+      const rho = r0 * (0.3 + rnd() * 0.45);
+      const L = THREE.MathUtils.clamp(0.5 + 0.8 * r0, 0.6, 1.6) * (0.85 + rnd() * 0.3) * (t.lod ? 1.4 : 1);
+      const W = L * (0.38 + rnd() * 0.14);
+      vD.set(Math.cos(a), 0, Math.sin(a));
+      vT.set(-Math.sin(a), 0, Math.cos(a));
+      const droop = THREE.MathUtils.degToRad(20 + rnd() * 15);
+      vU.copy(vD).multiplyScalar(Math.cos(droop)).addScaledVector(UP_V, -Math.sin(droop)).normalize();
+      vP.set(t.x + vD.x * rho, y + (rnd() - 0.5) * 0.15, t.z + vD.z * rho).addScaledVector(vU, L * 0.5);
+      vS.copy(vD).addScaledVector(UP_V, slopeUp).normalize();
+      leafColor(tmpColor, shade, vP.x, vP.y, vP.z, (tt - 0.12) / 0.88).multiplyScalar(0.55 + 0.45 * (rho / r0));
+      // two crossed planes per frond (near-horizontal spray + its vertical twin, both rolled ±25°):
+      // a lone horizontal card is a line from eye level, a lone vertical one a bar from above
+      const roll0 = (rnd() - 0.5) * THREE.MathUtils.degToRad(50);
+      for (const roll of [roll0, roll0 + Math.PI / 2]) {
+        vN.crossVectors(vU, vT);
+        vV.copy(vT).multiplyScalar(Math.cos(roll)).addScaledVector(vN, Math.sin(roll)).normalize();
+        addCardUV(sink.cards, vP, vU, vV, L, W, 'needle', tmpColor, vS);
+      }
+    }
   }
 }
 
@@ -383,39 +477,71 @@ const SHRUBS: [number, number, number][] = [
   [-3.2, 3.55, 0.4],
   [-4.6, 3.45, 0.36],
   [-6.5, 3.6, 0.32],
-  [-1.9, 6.6, 0.3],
+  [-1.9, 6.42, 0.28],
   [1.3, 10.7, 0.38],
   [3.4, 10.7, 0.42],
   [5.3, 10.7, 0.36],
   [9.2, 10.7, 0.38],
-  [8.0, 7.2, 0.34],
+  [8.3, 7.3, 0.34],
 ];
 
-/** Shrub: 6–8 sub-blobs of 0.5–0.7 r in the upper half of a 0.5 r shell, ~120 leaf cards of 20–25 cm. */
-function addShrub(sink: Sink, x: number, z: number, r: number, rnd: Rnd, seed: number): void {
+/**
+ * Raised mulch beds under every shrub group (0.3 m past the shrubs, clipped to the wall faces
+ * and the paving): a 50 mm slab with a 30 mm rounded lip, so the beds read as a soft-edged
+ * mound rather than a flat dark decal.
+ */
+const SHRUB_BEDS: Rect[] = [
+  [0.45, 0.85, 1.35, 3.5],
+  [1.9, 0.05, 5.75, 0.74],
+  [6.7, -0.95, 13.0, -0.17],
+  [13.28, 0.6, 14.1, 6.1],
+  [-6.9, 3.0, -2.75, 4.0],
+  [-2.3, 6.1, -1.5, 6.62],
+  [0.9, 10.38, 5.75, 11.15],
+  [8.5, 10.0, 9.9, 11.4],
+  [7.85, 6.45, 8.95, 7.95],
+];
+const BED_H = 0.05;
+
+/** Shrub: dark sub-lumps in the upper half of a 0.5 r shell, 300–400 cards of 0.3–0.45 m with depth, 3–5 stems at the base. */
+function addShrub(sink: Sink, x: number, z: number, r: number, yBase: number, rnd: Rnd, seed: number): void {
   const [dark, light] = tones(COLORS.hedgeDark, COLORS.hedgeLight, rnd);
-  const cy = GRADE_Y + 0.5 * r;
-  const shade: Shade = { dark, light, aoY: GRADE_Y + 0.35 * r, aoDepth: 0.35 * r, R: r, seed };
-  const lumps: Lump[] = [{ c: [x, cy, z], r: 0.65 * r, sy: 0.8 }];
+  const cy = yBase + 0.5 * r;
+  const shade: Shade = { dark, light, aoY: yBase + 0.35 * r, aoDepth: 0.35 * r, R: r, seed };
+  const lumps: Lump[] = [{ c: [x, cy, z], r: 0.6 * r, sy: 0.8 }];
   const n = 5 + Math.floor(rnd() * 3);
   for (let b = 0; b < n; b++) {
     randomDir(rnd, vD);
-    const rr = r * (0.5 + rnd() * 0.2);
+    const rr = r * (0.35 + rnd() * 0.15);
     lumps.push({ c: [x + vD.x * 0.5 * r, cy - 0.05 * r + Math.abs(vD.y) * 0.3 * r, z + vD.z * 0.5 * r], r: rr, sy: 0.8 + rnd() * 0.15 });
   }
-  addCrown(sink, { lumps, octaves: canopyOctaves(r), shade, detail: 2, cards: 110 + Math.floor(rnd() * 30), cardSize: 0.22, cardOut: 0.06 * r, yMin: GRADE_Y + 0.06, cy, R: r }, rnd);
+  const stems = 3 + Math.floor(rnd() * 3);
+  for (let s = 0; s < stems; s++) {
+    const a = rnd() * Math.PI * 2;
+    const d = rnd() * 0.25 * r;
+    sink.trunks.push(cylinderBetween([x + Math.cos(a) * d * 0.4, yBase - 0.02, z + Math.sin(a) * d * 0.4], [x + Math.cos(a) * d, cy, z + Math.sin(a) * d], 0.012, 5, 0.008));
+  }
+  addCrown(
+    sink,
+    { lumps, octaves: crownOctaves(r), shade, detail: 2, cards: 300 + Math.floor(rnd() * 100), cardSize: 0.37, cardIn: -0.3 * r, cardOut: 0.15 * r, yMin: yBase + 0.05, centre: [x, cy, z], R: r, squash: 0.8 },
+    rnd,
+  );
 }
 
-// ---- street hedge: 0.5 m plants with a chamfered top, lumpy faces, leaf cards
+// ---- street hedge: 0.5 m plants of varied height and lean, a 0.2 m chamfered top, lumpy faces, leaf cards, in sections with gaps
 const HEDGE_X = STREET.x2 + 1.0;
 const HEDGE_W = 0.8;
 const HEDGE_H = 1.1;
 const HEDGE_PLANT = 0.5;
-const HEDGE_CHAMFER = 0.12;
+const HEDGE_CHAMFER = 0.2;
+const HEDGE_SECTION: [number, number] = [4, 6];
+const HEDGE_GAP = 0.6;
 const HEDGE_OCTAVES: Octave[] = [
   { wavelength: 0.18, amplitude: 0.05 },
   { wavelength: 0.07, amplitude: 0.02 },
 ];
+/** The clipped top catches the sun flat-on: its tone is dropped so it stays in the lawn's value range. */
+const HEDGE_TOP_TONE = 0.65;
 
 interface ProfilePoint {
   x: number;
@@ -444,24 +570,23 @@ function hedgeProfile(): ProfilePoint[] {
     for (let k = includeStart ? 0 : 1; k <= n; k++) push(x0 + ((x1 - x0) * k) / n, y0 + ((y1 - y0) * k) / n, nx, ny);
   };
   const arc = (cx: number, cy: number, a0: number, a1: number) => {
-    for (let k = 1; k <= 4; k++) {
-      const a = a0 + ((a1 - a0) * k) / 4;
+    for (let k = 1; k <= 5; k++) {
+      const a = a0 + ((a1 - a0) * k) / 5;
       push(cx + Math.cos(a) * c, cy + Math.sin(a) * c, Math.cos(a), Math.sin(a));
     }
   };
-  line(hw, 0, hw, HEDGE_H - c, 1, 0, 20, true);
+  line(hw, 0, hw, HEDGE_H - c, 1, 0, 18, true);
   arc(hw - c, HEDGE_H - c, 0, Math.PI / 2);
-  line(hw - c, HEDGE_H, -hw + c, HEDGE_H, 0, 1, 12, false);
+  line(hw - c, HEDGE_H, -hw + c, HEDGE_H, 0, 1, 8, false);
   arc(-hw + c, HEDGE_H - c, Math.PI / 2, Math.PI);
-  line(-hw, HEDGE_H - c, -hw, 0, -1, 0, 20, false);
+  line(-hw, HEDGE_H - c, -hw, 0, -1, 0, 18, false);
   line(-hw, 0, hw, 0, 0, -1, 2, false); // closes the loop on the (buried) bottom
   return pts;
 }
 
 const HEDGE_PROFILE = hedgeProfile();
 
-function addHedgeRun(sink: Sink, za: number, zb: number, rnd: Rnd, seed: number): void {
-  const [dark, light] = tones(COLORS.hedgeDark, COLORS.hedgeLight, rnd);
+function addHedgePlants(sink: Sink, za: number, zb: number, shade0: Shade, rnd: Rnd, seed: number): void {
   const yBase = GRADE_Y - 0.02;
   const n = Math.max(1, Math.round((zb - za) / HEDGE_PLANT));
   const len = (zb - za) / n;
@@ -471,25 +596,29 @@ function addHedgeRun(sink: Sink, za: number, zb: number, rnd: Rnd, seed: number)
     const z0 = za + len * k;
     const z1 = z0 + len;
     const cx = HEDGE_X + (rnd() - 0.5) * 0.12;
-    const shade: Shade = { dark, light, aoY: GRADE_Y + 0.3, aoDepth: 0.35, R: 0.6, seed: seed + k };
+    const hScale = 1 + ((rnd() - 0.5) * 0.16) / HEDGE_H; // ±8 cm
+    const lean = (rnd() - 0.5) * THREE.MathUtils.degToRad(6); // ±3°
+    const shade: Shade = { ...shade0, seed: seed + k };
     const vertex = (i: number, z: number) => {
       const q = HEDGE_PROFILE[i];
-      const wx = cx + q.x;
-      const wy = yBase + q.y;
+      const y = q.y * hScale;
+      const wx = cx + q.x + Math.tan(lean) * y;
+      const wy = yBase + y;
       let d = q.ny < -0.5 ? 0 : fbm3(wx, wy, z, HEDGE_OCTAVES, seed + k);
-      if (q.ny > 0.6) d *= 2; // the clipped top is the lumpiest
+      if (q.ny > 0.6) d *= 1.6; // the clipped top is the lumpiest
       const p: Vec3 = [wx + q.nx * d, wy + q.ny * d, z];
       leafColor(tmpColor, shade, p[0], p[1], p[2], q.y / HEDGE_H);
-      return { p, c: [tmpColor.r, tmpColor.g, tmpColor.b] as Vec3, uv: [q.s, z] as Vec2 };
+      if (q.ny > 0.6) tmpColor.multiplyScalar(HEDGE_TOP_TONE);
+      return { p, c: [tmpColor.r, tmpColor.g, tmpColor.b] as Vec3, uv: [q.s, z] as Vec2, n: [q.nx, q.ny, 0] as Vec3 };
     };
-    sink.solid.push(gridSurface(nu, nv, (i, j) => vertex(i, z0 + ((z1 - z0) * j) / nv), true));
-    // end caps (fans), so the ±6 cm offsets between plants show a leafy end rather than a hole
+    sink.hedge.push(gridSurface(nu, nv, (i, j) => vertex(i, z0 + ((z1 - z0) * j) / nv), true));
+    // end caps (fans), so the offsets between plants and the section gaps show a leafy end rather than a hole
     const caps = new TriangleSoup(1);
     for (const [z, want] of [
       [z0, [0, 0, -1]],
       [z1, [0, 0, 1]],
     ] as [number, Vec3][]) {
-      const centre: Vec3 = [cx, yBase + HEDGE_H / 2, z];
+      const centre: Vec3 = [cx, yBase + (HEDGE_H * hScale) / 2, z];
       for (let i = 0; i < nu; i++) {
         const a = vertex(i, z);
         const b = vertex(i + 1, z);
@@ -497,37 +626,61 @@ function addHedgeRun(sink: Sink, za: number, zb: number, rnd: Rnd, seed: number)
         caps.triUV(centre, a.p, b.p, [cx, centre[1]], [a.p[0], a.p[1]], [b.p[0], b.p[1]], want);
       }
     }
-    sink.solid.push(caps.build());
-    // leaf cards on the top and the two faces
-    const cards = Math.round(200 * len);
+    sink.hedge.push(caps.build());
+    // leaf cards over both faces and the top, 4–12 cm proud with strong tilt, lit with the face normal
+    const cards = Math.round(250 * len);
     for (let c = 0; c < cards; c++) {
       const i = Math.floor(rnd() * (nu - 2)); // every point but the buried bottom edge
       const q = HEDGE_PROFILE[i];
       const v = vertex(i, z0 + 0.03 + rnd() * (len - 0.06));
-      vP.set(v.p[0] + q.nx * 0.03, v.p[1] + q.ny * 0.03, v.p[2]);
-      vN.set(q.nx + (rnd() - 0.5) * 0.7, q.ny + (rnd() - 0.5) * 0.7, (rnd() - 0.5) * 0.7).normalize();
-      tmpColor.setRGB(v.c[0], v.c[1], v.c[2]);
-      addLeafCard(sink.cards, vP, vN, 0.2 + rnd() * 0.06, rnd() * Math.PI * 2, tmpColor);
+      const out = 0.04 + rnd() * 0.08;
+      vP.set(v.p[0] + q.nx * out, v.p[1] + q.ny * out, v.p[2]);
+      vN.set(q.nx + (rnd() - 0.5) * 0.9, q.ny + (rnd() - 0.5) * 0.9, (rnd() - 0.5) * 0.9).normalize();
+      vS.set(v.n[0], v.n[1], v.n[2]);
+      tmpColor.setRGB(v.c[0], v.c[1], v.c[2]).multiplyScalar(0.85 + out * 2.5);
+      addLeafCard(sink.cards, vP, vN, 0.22 + rnd() * 0.08, rnd() * Math.PI * 2, tmpColor, vS);
     }
+  }
+}
+
+/** A hedge run broken into 4–6 m sections with 0.6 m gaps (a kept hedge is several plants, not one extrusion). */
+function addHedgeRun(sink: Sink, za: number, zb: number, rnd: Rnd, seed: number): void {
+  const [dark, light] = tones(COLORS.hedgeDark, COLORS.hedgeLight, rnd);
+  const shade: Shade = { dark, light, aoY: GRADE_Y + 0.3, aoDepth: 0.35, R: 0.6, seed };
+  let z = za;
+  let k = 0;
+  while (z < zb - 0.5) {
+    let end = Math.min(z + HEDGE_SECTION[0] + rnd() * (HEDGE_SECTION[1] - HEDGE_SECTION[0]), zb);
+    if (zb - end < 1.5) end = zb;
+    addHedgePlants(sink, z, end, shade, rnd, seed + k * 50);
+    z = end + HEDGE_GAP;
+    k++;
   }
 }
 
 function Foliage() {
   const leaf = useLeaf();
+  const hedgeLeaf = useHedgeLeaf();
   const cardMat = useLeafCards();
   const bark = useBark();
+  const mulch = useMulch();
   const [, pz1] = RAMPS.perron.bounds;
   const [, , , dz2] = RAMPS.driveway.bounds;
 
-  const { solid, cards, trunks } = useMemo(() => {
+  const { solid, hedge, cards, trunks, beds } = useMemo(() => {
     const rnd = mulberry32(7);
-    const sink: Sink = { solid: [], trunks: [], cards: new TriangleSoup(1) };
+    const sink: Sink = { solid: [], hedge: [], trunks: [], cards: new TriangleSoup(1) };
     let seed = 100;
-    for (const t of TREES) {
+    for (const t of [...TREES, ...MID_TREES]) {
       if (t.kind === 'round') addRoundTree(sink, t, rnd, seed++);
       else addConifer(sink, t, rnd, seed++);
     }
-    for (const [x, z, r] of SHRUBS) addShrub(sink, x, z, r, rnd, seed++);
+    const bedParts: THREE.BufferGeometry[] = [];
+    for (const [x1, z1, x2, z2] of SHRUB_BEDS) bedParts.push(place(metreRoundedBox(x2 - x1, BED_H, z2 - z1, 0.03, { offset: [x1, z1] }), [(x1 + x2) / 2, GRADE_Y + BED_H / 2 - 0.004, (z1 + z2) / 2]));
+    for (const [x, z, r] of SHRUBS) {
+      const onBed = SHRUB_BEDS.some((b) => x >= b[0] && x <= b[2] && z >= b[1] && z <= b[3]);
+      addShrub(sink, x, z, r, onBed ? GRADE_Y + BED_H - 0.004 : GRADE_Y, rnd, seed++);
+    }
     // hedge along the street: gaps at the walkway, the driveway and the mailbox; the south run stops
     // 1.3 m short of the walkway so its end is not in the visitor's face at the start viewpoint
     const runs: [number, number][] = [
@@ -536,57 +689,72 @@ function Foliage() {
     ];
     for (const [za, zb] of runs) {
       addHedgeRun(sink, za, zb, rnd, seed);
-      seed += 40;
+      seed += 400;
     }
-    return { solid: mergeAll(sink.solid), cards: sink.cards.build(), trunks: mergeAll(sink.trunks) };
+    return { solid: mergeAll(sink.solid), hedge: mergeAll(sink.hedge), cards: sink.cards.build(), trunks: mergeAll(sink.trunks), beds: mergeAll(bedParts) };
   }, [pz1, dz2]);
-  useDispose(solid, cards, trunks);
+  useDispose(solid, hedge, cards, trunks, beds);
 
   return (
     <group name="foliage">
+      <mesh geometry={beds} material={mulch} receiveShadow />
       <mesh geometry={trunks} material={bark} castShadow />
       <mesh geometry={solid} material={leaf} castShadow receiveShadow />
+      <mesh geometry={hedge} material={hedgeLeaf} castShadow receiveShadow />
       <mesh geometry={cards} material={cardMat} castShadow receiveShadow />
     </group>
   );
 }
 
 // ---------------------------------------------------------------------------------------------
-// Horizon tree line: crossed alpha billboards on the rolling far lawn (one draw call)
+// Horizon: two rings of three-plane alpha billboards (5 silhouettes, per-tree sun side, tint and
+// height jitter) beyond 60 m, and a continuous tree-line band behind them (two draw calls).
 // ---------------------------------------------------------------------------------------------
+const RINGS: [number, number][] = [
+  [60, 3],
+  [72, 4],
+];
+const BAND_RADIUS = 84;
+const BAND_H = 6;
+const BAND_TILE = 12;
+const sunXZ = new THREE.Vector2(SUN_DIR.x, SUN_DIR.z).normalize();
+
 function FarTrees() {
-  const mat = useFarTrees();
-  const geom = useMemo(() => {
+  const atlas = useFarTreeAtlas();
+  const treeMat = useFarTrees(atlas);
+  const band = useMemo(() => treelineTexture(), []);
+  const bandMat = useFarTrees(band);
+  const { trees, bandGeom } = useMemo(() => {
     const rnd = mulberry32(55);
     const soup = new TriangleSoup(1);
-    const add = (x: number, z: number, h: number, conifer: boolean) => {
+    const c = new THREE.Color();
+    const add = (x: number, z: number, h: number) => {
       const y = lawnHeightAt(x, z) - 0.3;
-      const w = h * 0.5;
+      const p = rnd();
+      const variant = FAR_TREE_VARIANTS[p < 0.3 ? 2 + Math.floor(rnd() * 2) : p < 0.38 ? 4 : Math.floor(rnd() * 2)];
+      const w = h * variant.aspect * (0.85 + rnd() * 0.3);
       const yaw = rnd() * Math.PI;
-      const k = 0.8 + rnd() * 0.3;
-      soup.setColor(k, k, k);
-      const [u0, u1] = conifer ? ATLAS.needle : ATLAS.leaf;
-      for (const a of [yaw, yaw + Math.PI / 2]) {
-        const dx = (Math.cos(a) * w) / 2;
-        const dz = (Math.sin(a) * w) / 2;
-        soup.quadUV([x - dx, y, z - dz], [x + dx, y, z + dz], [x + dx, y + h, z + dz], [x - dx, y + h, z - dz], [u0, 0], [u1, 0], [u1, 1], [u0, 1], [-dz, 0, dx]);
+      // the viewer at the house sees the face turned toward it: lit when that face looks at the sun
+      const dx = x - LAWN_CX;
+      const dz = z - LAWN_CZ;
+      const len = Math.hypot(dx, dz) || 1;
+      const lit = 0.55 + 0.45 * Math.max(0, -(dx / len) * sunXZ.x - (dz / len) * sunXZ.y);
+      const value = lit * (0.85 + rnd() * 0.3);
+      const hue = (rnd() - 0.5) * 0.16; // ±8 % between the red and blue channels: a hue shift of the tint
+      c.setRGB(value * (1 + hue), value, value * (1 - hue));
+      const [u0, u1] = variant.u;
+      // self-shadowed base: the bottom vertices at 0.6× (the lower third averages ~0.7×)
+      const lo: Vec3 = [c.r * 0.6, c.g * 0.6, c.b * 0.6];
+      const hi: Vec3 = [c.r, c.g, c.b];
+      for (const a of [yaw, yaw + Math.PI / 3, yaw + (2 * Math.PI) / 3]) {
+        const ax = (Math.cos(a) * w) / 2;
+        const az = (Math.sin(a) * w) / 2;
+        const n: Vec3 = [-az, 0, ax];
+        soup.triUVC([x - ax, y, z - az], [x + ax, y, z + az], [x + ax, y + h, z + az], [u0, 0], [u1, 0], [u1, 1], lo, lo, hi, n);
+        soup.triUVC([x - ax, y, z - az], [x + ax, y + h, z + az], [x - ax, y + h, z - az], [u0, 0], [u1, 1], [u0, 1], lo, hi, hi, n);
       }
     };
-    const onStreet = (x: number) => x > -24 && x < -9;
-    // a few trees at mid distance (what used to be the 18 solid far trees)
-    for (let k = 0; k < 16; k++) {
-      const ang = (k / 16) * Math.PI * 2 + rnd() * 0.3;
-      const r = 36 + rnd() * 14;
-      const x = LAWN_CX + Math.cos(ang) * r;
-      const z = LAWN_CZ + Math.sin(ang) * r;
-      if (onStreet(x)) continue;
-      add(x, z, 8 + rnd() * 3, rnd() < 0.35);
-    }
-    // the ring: two jittered rows, 3 m pitch
-    for (const [radius, jitter] of [
-      [57, 2.5],
-      [68, 3.5],
-    ]) {
+    for (const [radius, jitter] of RINGS) {
       const n = Math.round((Math.PI * 2 * radius) / 3);
       for (let k = 0; k < n; k++) {
         const ang = ((k + (rnd() - 0.5) * 0.5) / n) * Math.PI * 2;
@@ -594,17 +762,43 @@ function FarTrees() {
         const x = LAWN_CX + Math.cos(ang) * r;
         const z = LAWN_CZ + Math.sin(ang) * r;
         if (onStreet(x)) continue;
-        add(x, z, 8 + rnd() * 4, rnd() < 0.35);
+        add(x, z, 7 + rnd() * 7);
       }
     }
-    return soup.build();
+    // tree-line band: a ring of quads facing the house, tiled every BAND_TILE metres of arc
+    const bandSoup = new TriangleSoup(1);
+    const segs = Math.round((Math.PI * 2 * BAND_RADIUS) / 4);
+    for (let k = 0; k < segs; k++) {
+      const a0 = (k / segs) * Math.PI * 2;
+      const a1 = ((k + 1) / segs) * Math.PI * 2;
+      const x0 = LAWN_CX + Math.cos(a0) * BAND_RADIUS;
+      const z0 = LAWN_CZ + Math.sin(a0) * BAND_RADIUS;
+      const x1 = LAWN_CX + Math.cos(a1) * BAND_RADIUS;
+      const z1 = LAWN_CZ + Math.sin(a1) * BAND_RADIUS;
+      const y0 = lawnHeightAt(x0, z0) - 0.5;
+      const y1 = lawnHeightAt(x1, z1) - 0.5;
+      const u0 = (a0 * BAND_RADIUS) / BAND_TILE;
+      const u1 = (a1 * BAND_RADIUS) / BAND_TILE;
+      const lit = 0.55 + 0.45 * Math.max(0, -Math.cos((a0 + a1) / 2) * sunXZ.x - Math.sin((a0 + a1) / 2) * sunXZ.y);
+      const lo: Vec3 = [lit * 0.7, lit * 0.7, lit * 0.7];
+      const hi: Vec3 = [lit, lit, lit];
+      const n: Vec3 = [-Math.cos(a0), 0, -Math.sin(a0)];
+      bandSoup.triUVC([x0, y0, z0], [x1, y1, z1], [x1, y1 + BAND_H, z1], [u0, 0], [u1, 0], [u1, 1], lo, lo, hi, n);
+      bandSoup.triUVC([x0, y0, z0], [x1, y1 + BAND_H, z1], [x0, y0 + BAND_H, z0], [u0, 0], [u1, 1], [u0, 1], lo, hi, hi, n);
+    }
+    return { trees: soup.build(), bandGeom: bandSoup.build() };
   }, []);
-  useDispose(geom);
-  return <mesh geometry={geom} material={mat} />;
+  useDispose(trees, bandGeom, band);
+  return (
+    <group name="horizon">
+      <mesh geometry={trees} material={treeMat} />
+      <mesh geometry={bandGeom} material={bandMat} />
+    </group>
+  );
 }
 
 // ---------------------------------------------------------------------------------------------
-// Field stones (in the beds and at tree feet): noisy, flat-bottomed, sunk 30 % into the grade on a mulch ring
+// Field stones (in the beds and at tree feet): noisy, faceted, flat-bottomed, sunk 30 % into the grade on a mulch ring
 // ---------------------------------------------------------------------------------------------
 const ROCKS: [number, number, number, number][] = [
   [0.9, 0.55, 0.3, 0.9],
@@ -616,7 +810,7 @@ const ROCKS: [number, number, number, number][] = [
   [7.1, 15.2, 0.36, 1.1],
 ];
 const ROCK_OCTAVES: Octave[] = [
-  { wavelength: 0.6, amplitude: 0.12 },
+  { wavelength: 0.6, amplitude: 0.1 },
   { wavelength: 0.2, amplitude: 0.05 },
 ];
 
@@ -624,29 +818,42 @@ function Rocks() {
   const rock = useRock();
   const mulch = useMulch();
   const { stones, rings } = useMemo(() => {
+    const rnd = mulberry32(91);
     const parts: THREE.BufferGeometry[] = [];
     const ringSoup = new TriangleSoup(1);
-    ROCKS.forEach(([x, z, r, yaw], idx) => {
-      const raw = new THREE.IcosahedronGeometry(1, 3);
+    ROCKS.forEach(([x, z, r0, yaw], idx) => {
+      const r = r0 * (0.8 + rnd() * 0.45); // 20–30 % size variation per group
+      const raw = new THREE.IcosahedronGeometry(1, 2);
       const g = mergeVertices(raw);
       raw.dispose();
       const pos = g.getAttribute('position') as THREE.BufferAttribute;
+      // 2–3 flat facet cuts: planes at 0.72–0.88 of the radius
+      const cuts: { n: THREE.Vector3; d: number }[] = [];
+      const nCuts = 2 + Math.floor(rnd() * 2);
+      for (let c = 0; c < nCuts; c++) cuts.push({ n: randomDir(rnd, new THREE.Vector3()).setY(Math.abs(rnd() - 0.3)).normalize(), d: 0.72 + rnd() * 0.16 });
       for (let i = 0; i < pos.count; i++) {
         const px = pos.getX(i);
         const py = pos.getY(i);
         const pz = pos.getZ(i);
         const k = 1 + fbm3(px, py, pz, ROCK_OCTAVES, 400 + idx);
-        pos.setXYZ(i, px * k, Math.max(py * k * 0.62, -0.45), pz * k);
+        vP.set(px * k, py * k * 0.7, pz * k);
+        for (const cut of cuts) {
+          const over = vP.dot(cut.n) - cut.d;
+          if (over > 0) vP.addScaledVector(cut.n, -over);
+        }
+        pos.setXYZ(i, vP.x, Math.max(vP.y, -0.45), vP.z);
       }
       pos.needsUpdate = true;
       const uv = g.getAttribute('uv') as THREE.BufferAttribute;
       for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 2 * r, uv.getY(i) * r);
-      g.computeVertexNormals();
       g.scale(r, r, r);
-      parts.push(place(g, [x, GRADE_Y + 0.3 * r, z], yaw));
-      // mulch ring at the foot
+      const flat = g.toNonIndexed(); // flat facets: a rock, not an egg
+      g.dispose();
+      flat.computeVertexNormals();
+      parts.push(place(flat, [x, GRADE_Y + 0.25 * r, z], yaw));
+      // mulch / soil ring at the foot (0.1 m past the contact)
       const n = 14;
-      const rr = r * 1.35;
+      const rr = r * 1.1 + 0.1;
       const y = GRADE_Y + 0.038;
       for (let i = 0; i < n; i++) {
         const a0 = (i / n) * Math.PI * 2;
@@ -743,8 +950,12 @@ function plankQuads(soup: TriangleSoup, cx: number, cz: number, along: Vec2, nor
 
 function Fence() {
   const planks = usePlanks();
-  const set = usePbr('weathered_brown_planks', { repeat: [1 / PLANK_TILE, 1 / PLANK_TILE], normalScale: 0.9 });
-  const plankMat = useMemo(() => new THREE.MeshStandardMaterial({ ...set.props, vertexColors: true, roughness: 0.85, envMapIntensity: 0.7 }), [set]);
+  const set = usePlankTextures();
+  // same weathered-cedar lift as usePlanks (the per-plank vertex colour varies it ±11 %)
+  const plankMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ map: set.map, normalMap: set.normalMap, roughnessMap: set.roughnessMap, normalScale: new THREE.Vector2(0.9, 0.9), color: COLORS.cedar, vertexColors: true, roughness: 0.8, envMapIntensity: 1.0 }),
+    [set],
+  );
 
   const { plankGeom, frameGeom } = useMemo(() => {
     const rnd = mulberry32(31);

@@ -43,8 +43,11 @@ export class TriangleSoup {
   private readonly pos: number[] = [];
   private readonly uv: number[] = [];
   private readonly col: number[] = [];
+  private readonly nor: number[] = [];
   private useColor = false;
+  private useNormal = false;
   private color: [number, number, number] = [1, 1, 1];
+  private normal: Vec3 | null = null;
   private uAxis: 0 | 1 | 2 = 0;
   private vAxis: 0 | 1 | 2 = 2;
 
@@ -64,10 +67,23 @@ export class TriangleSoup {
     return this;
   }
 
-  private push(p: Vec3, uv: Vec2): void {
+  /**
+   * Explicit (unit) vertex normal for the triangles added afterwards, overriding the computed face
+   * normal — leaf cards carry the normal of the crown shell they sit on, so a shell of flat quads
+   * shades like one surface instead of a thousand facets. `null` returns to flat normals.
+   */
+  setNormal(n: Vec3 | null): this {
+    if (n) this.useNormal = true;
+    this.normal = n ? [n[0], n[1], n[2]] : null;
+    return this;
+  }
+
+  private push(p: Vec3, uv: Vec2, col: readonly [number, number, number] = this.color): void {
     this.pos.push(p[0], p[1], p[2]);
     this.uv.push(uv[0], uv[1]);
-    this.col.push(this.color[0], this.color[1], this.color[2]);
+    this.col.push(col[0], col[1], col[2]);
+    if (this.normal) this.nor.push(this.normal[0], this.normal[1], this.normal[2]);
+    else this.nor.push(0, 0, 0);
   }
 
   private planarUv(p: Vec3): Vec2 {
@@ -76,6 +92,16 @@ export class TriangleSoup {
 
   /** Adds a triangle with explicit UVs, flipping its winding so the face normal agrees with `want`. */
   triUV(a: Vec3, b: Vec3, c: Vec3, ua: Vec2, ub: Vec2, uc: Vec2, want: Vec3): void {
+    this.emit(a, b, c, ua, ub, uc, this.color, this.color, this.color, want);
+  }
+
+  /** As triUV, with a colour per vertex (linear RGB; enables the colour attribute). */
+  triUVC(a: Vec3, b: Vec3, c: Vec3, ua: Vec2, ub: Vec2, uc: Vec2, ca: Vec3, cb: Vec3, cc: Vec3, want: Vec3): void {
+    this.useColor = true;
+    this.emit(a, b, c, ua, ub, uc, ca, cb, cc, want);
+  }
+
+  private emit(a: Vec3, b: Vec3, c: Vec3, ua: Vec2, ub: Vec2, uc: Vec2, ca: readonly [number, number, number], cb: readonly [number, number, number], cc: readonly [number, number, number], want: Vec3): void {
     const ux = b[0] - a[0];
     const uy = b[1] - a[1];
     const uz = b[2] - a[2];
@@ -87,13 +113,13 @@ export class TriangleSoup {
     const nz = ux * vy - uy * vx;
     const dot = nx * want[0] + ny * want[1] + nz * want[2];
     if (dot >= 0) {
-      this.push(a, ua);
-      this.push(b, ub);
-      this.push(c, uc);
+      this.push(a, ua, ca);
+      this.push(b, ub, cb);
+      this.push(c, uc, cc);
     } else {
-      this.push(a, ua);
-      this.push(c, uc);
-      this.push(b, ub);
+      this.push(a, ua, ca);
+      this.push(c, uc, cc);
+      this.push(b, ub, cb);
     }
   }
 
@@ -122,6 +148,16 @@ export class TriangleSoup {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
     if (this.useColor) g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
     g.computeVertexNormals();
+    if (this.useNormal) {
+      const nor = g.getAttribute('normal') as THREE.BufferAttribute;
+      for (let i = 0; i < nor.count; i++) {
+        const x = this.nor[i * 3];
+        const y = this.nor[i * 3 + 1];
+        const z = this.nor[i * 3 + 2];
+        if (x !== 0 || y !== 0 || z !== 0) nor.setXYZ(i, x, y, z);
+      }
+      nor.needsUpdate = true;
+    }
     g.computeBoundingSphere();
     g.computeBoundingBox();
     return g;
@@ -498,11 +534,6 @@ export function maximalRects(g: CellGrid): Rect[] {
 // Steps
 // ---------------------------------------------------------------------------------------------
 
-export interface Block {
-  center: Vec3;
-  size: Vec3;
-}
-
 export interface FlightLike {
   bounds: Rect;
   dir: '+x' | '-x' | '+z' | '-z';
@@ -532,14 +563,59 @@ export function stepRuns(f: FlightLike): { a: number; b: number; top: number }[]
   return out;
 }
 
-/** Steps of an exterior flight as solid blocks rising from `bottomY` (poured-concrete look). */
-export function stepBlocks(f: FlightLike, bottomY: number): Block[] {
+/**
+ * The steps of a flight as ONE poured mass (no stacked slabs showing on the sides): a staircase
+ * profile extruded across the width, `inset` narrower than the flight on each side, the top of
+ * every step `treadT` under the nominal step height (the tread sits on it). UVs in metres; each
+ * riser face gets its own V offset (`riserShift × step`) so a tie-hole row never repeats on the
+ * next step.
+ */
+export function stairMass(f: FlightLike, bottomY: number, inset: number, treadT: number, riserShift = 0.33): THREE.BufferGeometry {
   const [x1, z1, x2, z2] = f.bounds;
   const alongX = f.dir === '+x' || f.dir === '-x';
-  return stepRuns(f).map(({ a, b, top }) => ({
-    center: alongX ? [(a + b) / 2, (bottomY + top) / 2, (z1 + z2) / 2] : [(x1 + x2) / 2, (bottomY + top) / 2, (a + b) / 2],
-    size: alongX ? [b - a, top - bottomY, z2 - z1] : [x2 - x1, top - bottomY, b - a],
-  }));
+  const ascending = f.dir === '+x' || f.dir === '+z';
+  const runs = stepRuns(f);
+  const w1 = (alongX ? z1 : x1) + inset;
+  const w2 = (alongX ? z2 : x2) - inset;
+  const P = (s: number, y: number, w: number): Vec3 => (alongX ? [s, y, w] : [w, y, s]);
+  const soup = new TriangleSoup(1);
+  // profile (s, y) from the low end: up the first riser, along each step, down the back
+  const sLow = ascending ? (alongX ? x1 : z1) : alongX ? x2 : z2;
+  const sHigh = ascending ? (alongX ? x2 : z2) : alongX ? x1 : z1;
+  const sign = ascending ? 1 : -1;
+  const profile: Vec2[] = [[sLow, bottomY]];
+  runs.forEach(({ a, b, top }, i) => {
+    const front = ascending ? a : b;
+    const back = ascending ? b : a;
+    const y = top - treadT;
+    profile.push([front, y], [back, y]);
+    // riser face
+    const yPrev = i === 0 ? bottomY : runs[i - 1].top - treadT;
+    const n: Vec3 = alongX ? [-sign, 0, 0] : [0, 0, -sign];
+    const v0 = yPrev + riserShift * i;
+    const v1 = y + riserShift * i;
+    soup.quadUV(P(front, yPrev, w1), P(front, yPrev, w2), P(front, y, w2), P(front, y, w1), [w1, v0], [w2, v0], [w2, v1], [w1, v1], n);
+    // step top (under the tread, mostly hidden: the nosing overhangs the front)
+    soup.setUvAxes(alongX ? 0 : 2, alongX ? 2 : 0);
+    soup.quad(P(front, y, w1), P(back, y, w1), P(back, y, w2), P(front, y, w2), UP);
+  });
+  profile.push([sHigh, bottomY]);
+  // sides: fan from the bottom-high corner (the staircase polygon is star-shaped from there)
+  const apex = profile[profile.length - 1];
+  for (const [w, n] of [
+    [w1, alongX ? [0, 0, -1] : [-1, 0, 0]],
+    [w2, alongX ? [0, 0, 1] : [1, 0, 0]],
+  ] as [number, Vec3][]) {
+    soup.setUvAxes(alongX ? 0 : 2, 1);
+    for (let i = 0; i + 1 < profile.length - 1; i++) soup.tri(P(apex[0], apex[1], w), P(profile[i][0], profile[i][1], w), P(profile[i + 1][0], profile[i + 1][1], w), n);
+  }
+  // back face (against the platform) and bottom
+  const topBack = runs[runs.length - 1].top - treadT;
+  soup.setUvAxes(alongX ? 2 : 0, 1);
+  soup.quad(P(sHigh, bottomY, w1), P(sHigh, bottomY, w2), P(sHigh, topBack, w2), P(sHigh, topBack, w1), alongX ? [sign, 0, 0] : [0, 0, sign]);
+  soup.setUvAxes(0, 2);
+  soup.quad(P(sLow, bottomY, w1), P(sHigh, bottomY, w1), P(sHigh, bottomY, w2), P(sLow, bottomY, w2), DOWN);
+  return soup.build();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -623,7 +699,16 @@ export function halfPipeUnit(r: number): THREE.BufferGeometry {
  * `bottomY` (retaining walls and caps that follow a sloped slab). All other faces are vertical;
  * UVs in metres (sides: along × height, top / bottom: X × Z).
  */
-export function slabPrism(soup: TriangleSoup, x1: number, z1: number, x2: number, z2: number, bottomY: (x: number, z: number) => number, topY: (x: number, z: number) => number): void {
+export function slabPrism(
+  soup: TriangleSoup,
+  x1: number,
+  z1: number,
+  x2: number,
+  z2: number,
+  bottomY: (x: number, z: number) => number,
+  topY: (x: number, z: number) => number,
+  chamfer = 0,
+): void {
   const t11 = topY(x1, z1);
   const t21 = topY(x2, z1);
   const t22 = topY(x2, z2);
@@ -632,13 +717,27 @@ export function slabPrism(soup: TriangleSoup, x1: number, z1: number, x2: number
   const b21 = bottomY(x2, z1);
   const b22 = bottomY(x2, z2);
   const b12 = bottomY(x1, z2);
+  const c = Math.min(chamfer, (x2 - x1) / 3, (z2 - z1) / 3);
   soup.setUvAxes(0, 2);
-  soup.quad([x1, t11, z1], [x2, t21, z1], [x2, t22, z2], [x1, t12, z2], UP);
+  if (c > 0) {
+    // top face inset by the chamfer, four 45° bevels down to the vertical sides
+    const xa = x1 + c;
+    const xb = x2 - c;
+    const za = z1 + c;
+    const zb = z2 - c;
+    soup.quad([xa, topY(xa, za), za], [xb, topY(xb, za), za], [xb, topY(xb, zb), zb], [xa, topY(xa, zb), zb], UP);
+    soup.quad([x1, t11 - c, z1], [x2, t21 - c, z1], [xb, topY(xb, za), za], [xa, topY(xa, za), za], [0, 1, -1]);
+    soup.quad([x1, t12 - c, z2], [x2, t22 - c, z2], [xb, topY(xb, zb), zb], [xa, topY(xa, zb), zb], [0, 1, 1]);
+    soup.quad([x1, t11 - c, z1], [x1, t12 - c, z2], [xa, topY(xa, zb), zb], [xa, topY(xa, za), za], [-1, 1, 0]);
+    soup.quad([x2, t21 - c, z1], [x2, t22 - c, z2], [xb, topY(xb, zb), zb], [xb, topY(xb, za), za], [1, 1, 0]);
+  } else {
+    soup.quad([x1, t11, z1], [x2, t21, z1], [x2, t22, z2], [x1, t12, z2], UP);
+  }
   soup.quad([x1, b11, z1], [x2, b21, z1], [x2, b22, z2], [x1, b12, z2], DOWN);
   soup.setUvAxes(0, 1);
-  soup.quad([x1, b11, z1], [x2, b21, z1], [x2, t21, z1], [x1, t11, z1], [0, 0, -1]);
-  soup.quad([x1, b12, z2], [x2, b22, z2], [x2, t22, z2], [x1, t12, z2], [0, 0, 1]);
+  soup.quad([x1, b11, z1], [x2, b21, z1], [x2, t21 - c, z1], [x1, t11 - c, z1], [0, 0, -1]);
+  soup.quad([x1, b12, z2], [x2, b22, z2], [x2, t22 - c, z2], [x1, t12 - c, z2], [0, 0, 1]);
   soup.setUvAxes(2, 1);
-  soup.quad([x1, b11, z1], [x1, b12, z2], [x1, t12, z2], [x1, t11, z1], [-1, 0, 0]);
-  soup.quad([x2, b21, z1], [x2, b22, z2], [x2, t22, z2], [x2, t21, z1], [1, 0, 0]);
+  soup.quad([x1, b11, z1], [x1, b12, z2], [x1, t12 - c, z2], [x1, t11 - c, z1], [-1, 0, 0]);
+  soup.quad([x2, b21, z1], [x2, b22, z2], [x2, t22 - c, z2], [x2, t21 - c, z1], [1, 0, 0]);
 }

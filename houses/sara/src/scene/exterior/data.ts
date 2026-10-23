@@ -51,17 +51,20 @@ export const SMALL_ROOF_THICKNESS = 0.12;
 export const PATIO = { w: 3.2, d: 2.6 };
 
 export const COLORS = {
-  /** Painted / aluminium trim (fascia, soffit, columns). */
-  trim: '#f1eee7',
-  curb: '#d6d3cb',
-  concrete: '#cfccc4',
+  /** Painted PVC / aluminium trim (fascia, soffit, columns): 70–75 % reflectance, not 85 %. */
+  trim: '#e6e2d8',
+  curb: '#d2d3d4',
+  /** Cool tint that neutralises the warm concrete_wall_008 map (sRGB 141,133,112 → grey; it landed at an olive-khaki under the warm sun). */
+  concrete: '#c4cfe6',
   /** Bark-mulch beds (finding 3: ~15 % albedo, no longer a 4 % black rectangle). */
-  mulch: '#5a4636',
+  mulch: '#66503e',
   rock: '#8b857b',
-  /** Split-face block of the porch body and the driveway retaining wall. */
-  block: '#d6d3cb',
+  /** Split-face block of the porch body and the driveway retaining wall (over the procedural block map). */
+  block: '#c9ccd0',
   /** Ballasted (light gravel) membrane of the flat porch / balcony roofs. */
   membrane: '#b9b7b0',
+  /** Weathered cedar: lifts weathered_brown_planks (~0.10 linear) to a silver-brown 0.25–0.30. */
+  cedar: '#d9d0c6',
   /** Foliage albedos (finding 1): real leaf values, dark → lit side of each species. */
   leafDark: '#2d4a22',
   leafLight: '#557a3a',
@@ -69,8 +72,8 @@ export const COLORS = {
   coniferLight: '#4a7542',
   hedgeDark: '#2f4d27',
   hedgeLight: '#52803f',
-  /** Distant tree-line billboards: tints a light atlas (≈ 0.4 linear) down to a dark, desaturated far-foliage albedo. */
-  farTree: '#5f7a55',
+  /** Horizon billboards: the atlas' sunlit band (≈ sRGB 200,214,170) × this ≈ #4d6e3a, the lit tone of the 3D crowns; the fog does the desaturation. */
+  farTree: '#63825c',
   mailbox: '#232326',
   flag: '#c8352b',
 } as const;

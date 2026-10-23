@@ -10,8 +10,8 @@
  *
  * The voile is a veil, not a lit sheet: opacity 0.3–0.45 from the colour's translucency, a dim
  * albedo and a faint indoor envMap (fabric.ts makeVoileMaterial) keep it a little darker than
- * the view behind it, and the linen weave at 0.25 m tiling gives it a moiré instead of a flat
- * milky plane.
+ * the view behind it, and the linen weave at its true 0.5 m tiling (slightly turned) gives it a
+ * moiré instead of a flat milky plane.
  *
  * Local frame (see ./types.ts): origin = centre of the opening on the interior wall face,
  * +X along the wall, +Y up, +Z into the room. The inner channel is at z = SHEER_Z, so the wave

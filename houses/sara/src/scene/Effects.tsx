@@ -30,6 +30,14 @@ function linearN8ao(pass: N8aoPassLike | null) {
 const AO_RADIUS_WALK = 0.9;
 /** In the dollhouse the rooms are 25–30 m away: a 0.9 m radius is ~4 px, so the radius grows. */
 const AO_RADIUS_ORBIT = 2.5;
+/**
+ * At 2.5 with distanceFalloff 1 the pass etched every silhouette against the far background (a
+ * 1–2 px dark rim down the brick corner against the sky, the wall / ceiling line a hard stroke).
+ * 1.5 keeps the corner and under-furniture contact shading; the shorter falloff stops a surface
+ * from occluding one a few metres behind it.
+ */
+const AO_INTENSITY = 1.5;
+const AO_DISTANCE_FALLOFF = 0.6;
 
 export function Effects() {
   const quality = useStore((s) => s.quality);
@@ -39,7 +47,7 @@ export function Effects() {
     <EffectComposer multisampling={0} enableNormalPass={false}>
       {/* 'medium' = 16 AO samples, 8 denoise samples at radius 12: enough to hide the
           interleaved-gradient dot lattice on plain walls while staying half-resolution. */}
-      <N8AO ref={linearN8ao} aoRadius={orbit ? AO_RADIUS_ORBIT : AO_RADIUS_WALK} intensity={2.5} distanceFalloff={1} quality="medium" halfRes depthAwareUpsampling />
+      <N8AO ref={linearN8ao} aoRadius={orbit ? AO_RADIUS_ORBIT : AO_RADIUS_WALK} intensity={AO_INTENSITY} distanceFalloff={AO_DISTANCE_FALLOFF} quality="medium" halfRes depthAwareUpsampling />
       <SMAA />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       <Vignette eskil={false} offset={0.3} darkness={0.15} />

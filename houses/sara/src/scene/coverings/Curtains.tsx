@@ -88,7 +88,8 @@ export function Curtains(props: FabricProps) {
   const kind = fabricKind(color.id);
   const maps = useFabricMaps(kind);
   const env = useIndoorEnvironment();
-  const fabric = useDisposable(() => makeDrapeMaterial({ hex: color.hex, kind, maps, envMap: env }), [color.hex, kind, maps, env]);
+  // vertexColors: the panel's baked ±2 % cloth-shade noise, so the folds are not lit identically
+  const fabric = useDisposable(() => makeDrapeMaterial({ hex: color.hex, kind, maps, envMap: env, vertexColors: true }), [color.hex, kind, maps, env]);
 
   const track = useDisposable(() => buildTrack(trackLen, double ? [SHEER_Z, DRAPE_Z_DOUBLE] : [DRAPE_Z_SINGLE]), [trackLen, double]);
   const trackMat = useDisposable(makeTrackMaterial, []);
