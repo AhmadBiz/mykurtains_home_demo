@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "description": "One site, many houses: a landing page listing every 3D house demo, each built from its own folder under houses/",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "build": "node scripts/build-all.mjs",
     "build:site": "node scripts/build-all.mjs --site-only",

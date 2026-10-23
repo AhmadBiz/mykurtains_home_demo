@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Interactive 3D walkthrough of a two-storey house with per-window curtain and blind selection",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

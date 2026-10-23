@@ -29,7 +29,7 @@ dist/houses/<id>/           ← chaque maison, servie sous /houses/<id>/
 ## Déploiement sur Vercel (un seul projet) / Deploy to Vercel (single project)
 
 1. Sur [vercel.com/new](https://vercel.com/new), importez ce dépôt. Laissez **Root Directory** à la racine.
-2. `vercel.json` fixe tout : build `npm run build`, sortie `dist`, pas de framework. Cliquez **Deploy**.
+2. `vercel.json` fixe tout : build `npm run build`, sortie `dist`, pas de framework. Node 22 (`engines` dans `package.json`). Cliquez **Deploy**.
 3. Le site est servi à la racine du domaine ; chaque maison à `/houses/<id>/`.
 
 Chaque push sur `main` reconstruit toutes les maisons (quelques secondes par maison).
