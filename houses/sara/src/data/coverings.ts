@@ -135,14 +135,14 @@ export const COVERING_TYPES: CoveringTypeDef[] = [
     colors: [{ id: 'none', name: '—', nameFr: '—', hex: '#ffffff' }], defaultColor: 'none', defaultOpen: 1, defaultTilt: 0,
   },
   {
-    id: 'curtains', name: 'Curtains (drapes)', nameFr: 'Rideaux', glyph: '🪟',
-    description: 'Two pleated fabric panels on a rod. Slide open or closed.', descriptionFr: 'Deux panneaux de tissu plissé sur tringle. Ouvrir ou fermer.',
-    hasOpen: true, openLabel: 'Drawn back', openLabelFr: 'Ouverture', hasTilt: false, hasSheerLayer: true,
+    id: 'curtains', name: 'Ripple-fold curtains (ceiling track)', nameFr: 'Rideaux à plis ondulés (rail au plafond)', glyph: '🪟',
+    description: 'Ceiling-mounted track with continuous wave folds, floor length. Slide open or closed.', descriptionFr: 'Rail fixé au plafond, plis ondulés continus, longueur plancher. Ouvrir ou fermer.',
+    hasOpen: true, openLabel: 'Drawn back', openLabelFr: 'Ouverture', hasTilt: false, hasSheerLayer: true, // sheer = second channel of a double ceiling track
     colors: FABRICS, defaultColor: 'ivory', defaultOpen: 0.7, defaultTilt: 0,
   },
   {
-    id: 'sheers', name: 'Sheers (voile)', nameFr: 'Voilages', glyph: '〰',
-    description: 'Light, translucent panels that soften the light.', descriptionFr: 'Panneaux légers et translucides qui tamisent la lumière.',
+    id: 'sheers', name: 'Ripple-fold sheers (ceiling track)', nameFr: 'Voilages à plis ondulés (rail au plafond)', glyph: '〰',
+    description: 'Translucent wave-fold voile on a ceiling track that softens the light.', descriptionFr: 'Voile translucide à plis ondulés sur rail au plafond, qui tamise la lumière.',
     hasOpen: true, openLabel: 'Drawn back', openLabelFr: 'Ouverture', hasTilt: false, hasSheerLayer: false,
     colors: SHEER_COLORS, defaultColor: 'white', defaultOpen: 0.1, defaultTilt: 0,
   },

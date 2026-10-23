@@ -1,10 +1,11 @@
 import { HOUSE } from '../../data/house';
 import { LEVEL_BY_ID, WALL_GEOMS, levelForY, pointInLevelOutline, roomAt } from '../../data/geometry';
 import type { WallGeom } from '../../data/geometry';
-import type { Level, LevelId, WallDef } from '../../data/types';
+import type { Level, LevelId, Room, WallDef } from '../../data/types';
 import { addBox, frameMatrix } from './bucket';
 import type { BoxKeys, BucketSet } from './bucket';
-import { K, paintKey } from './keys';
+import { K, paintKey, wallTileKey, wallTileTop } from './keys';
+import { addRailing } from './railings';
 
 /**
  * Walls. Every HOUSE.walls entry becomes box pieces in the wall's local frame (origin at `a`,
@@ -13,7 +14,8 @@ import { K, paintKey } from './keys';
  * opening. Pieces are also split at storey floor lines (so a double-height wall gets a brick
  * ground storey and a siding upper storey, and belongs to the right level for the dollhouse
  * view) and at room boundaries (so each side of an interior wall takes the colour of the room it
- * actually faces).
+ * actually faces). A face looking into a tiled bathroom (keys.ts WALL_TILE) is split once more
+ * at the room's tile line: glazed tile below it, the room's paint above.
  *
  * Extras drawn from the elevations:
  *  - a light rim board along the upper-storey floor line (covers the slab edge between brick and siding),
@@ -64,6 +66,7 @@ interface Span {
   hideS?: boolean;
   hideE?: boolean;
   hideY0?: boolean;
+  hideY1?: boolean;
   /** A single reveal quad (s === e) at the side of an opening, facing +X ('px') or -X ('nx') into it. */
   reveal?: 'px' | 'nx';
   /** A corner box (see Corner). */
@@ -121,11 +124,28 @@ function splitAtY(spans: Span[], ys: number[]): Span[] {
     let y0 = sp.y0;
     let hideY0 = sp.hideY0;
     for (const y of inner) {
-      out.push({ ...sp, y0, y1: y, hideY0 });
+      out.push({ ...sp, y0, y1: y, hideY0, hideY1: true });
       y0 = y;
       hideY0 = true;
     }
     out.push({ ...sp, y0, y1: sp.y1, hideY0 });
+  }
+  return out;
+}
+
+/** Material of a wall face looking into `room` at height y: tile below the room's tile line, its paint elsewhere. */
+function faceKey(room: Room | undefined, level: Level, y: number): string {
+  const top = wallTileTop(room, level);
+  if (top !== undefined && y < top) return wallTileKey(level.floorY);
+  return paintKey(room?.wallColor ?? WARM_WHITE);
+}
+
+/** Tile lines (world y) of the rooms a piece faces, to split it at. */
+function tileLines(rooms: readonly (Room | undefined)[], level: Level): number[] {
+  const out: number[] = [];
+  for (const r of rooms) {
+    const top = wallTileTop(r, level);
+    if (top !== undefined && !out.includes(top)) out.push(top);
   }
   return out;
 }
@@ -147,7 +167,7 @@ function splitAtX(spans: Span[], xs: number[]): Span[] {
 }
 
 /** Local x positions (strictly inside the wall) where a room edge perpendicular to the wall meets it. */
-function roomBoundaryCuts(w: WallDef, g: WallGeom, level: LevelId): number[] {
+export function roomBoundaryCuts(w: WallDef, g: WallGeom, level: LevelId): number[] {
   const [dx, dz] = g.dir;
   const [nx, nz] = g.normal;
   const aN = w.a[0] * nx + w.a[1] * nz;
@@ -288,23 +308,6 @@ function cornerSpan(c: Corner, length: number, extra: number, y0: number, y1: nu
   return c.end === 'a' ? { s: -along, e: 0, y0: yy0, y1: yy1, corner: c } : { s: length, e: length + along, y0: yy0, y1: yy1, corner: c };
 }
 
-function addRailing(set: BucketSet, w: WallDef, g: WallGeom, matrix: Matrix): void {
-  const h = w.height;
-  const L = g.length;
-  addBox(set, K.oak, { cx: L / 2, cy: h - 0.03, cz: 0, sx: L, sy: 0.06, sz: 0.07 }, matrix);
-  addBox(set, K.trim, { cx: L / 2, cy: 0.09, cz: 0, sx: L, sy: 0.04, sz: 0.04 }, matrix);
-  const balTop = h - 0.06;
-  const balBottom = 0.11;
-  const n = Math.max(1, Math.round(L / 0.12));
-  for (let i = 1; i < n; i++) {
-    const x = (L * i) / n;
-    addBox(set, { py: '', ny: '', rest: K.trim }, { cx: x, cy: (balTop + balBottom) / 2, cz: 0, sx: 0.022, sy: balTop - balBottom, sz: 0.022 }, matrix);
-  }
-  for (const x of [0.045, L - 0.045]) {
-    addBox(set, { ny: '', rest: K.trim }, { cx: x, cy: (h + 0.05) / 2, cz: 0, sx: 0.09, sy: h + 0.05, sz: 0.09 }, matrix);
-  }
-}
-
 /** Appends every wall of the house to the per-level bucket sets. */
 export function addWalls(sets: Record<LevelId, BucketSet>): void {
   const upperFloor = LEVEL_BY_ID.upper.floorY;
@@ -335,35 +338,38 @@ export function addWalls(sets: Record<LevelId, BucketSet>): void {
     // Which side of an exterior wall faces out (+1 = local +Z / the normal side), decided once per wall at its midpoint.
     const outside = w.exterior ? (pointInLevelOutline(lvl, g.mid[0] + nx * 0.6, g.mid[1] + nz * 0.6) ? -1 : 1) : 0;
     const facadeAt = (y: number): string => (y < groundFloor - 0.01 ? K.concrete : y < upperFloor - 0.01 ? K.brick : K.siding);
-    const sideKeyAt = (side: 1 | -1, level: LevelId, mx: number, mz: number, facade: string): string => {
-      if (w.exterior && side === outside) return facade;
-      return paintKey(roomAt(level, mx + side * nx * 0.3, mz + side * nz * 0.3)?.wallColor ?? WARM_WHITE);
-    };
+    /** The room a wall face on `side` looks into at (mx, mz). */
+    const roomBeside = (side: 1 | -1, level: LevelId, mx: number, mz: number): Room | undefined => roomAt(level, mx + side * nx * 0.3, mz + side * nz * 0.3);
     const hasBand = w.exterior && w.baseY <= upperFloor + 0.01 && top >= upperFloor + 0.01;
     const hasSkirt = w.exterior && w.level === 'ground' && !hasBasementBelow(g);
 
     // ---- 1. the wall body ----
     for (const sp of splitAtY(cutSpans(xs, xe, w.baseY, top, cuts, true), floorYs)) {
       const midY = (sp.y0 + sp.y1) / 2;
-      const pieceLevel = levelForY(midY);
+      const pieceLevel = LEVEL_BY_ID[levelForY(midY)];
       const facade = facadeAt(midY);
       if (sp.reveal) {
         const keys: BoxKeys = sp.reveal === 'px' ? { px: K.paintLight, rest: '' } : { nx: K.paintLight, rest: '' };
-        emitBox(sets[pieceLevel], keys, sp, w.thickness, w, matrix);
+        emitBox(sets[pieceLevel.id], keys, sp, w.thickness, w, matrix);
         continue;
       }
-      for (const p of splitAtX([sp], roomBoundaryCuts(w, g, pieceLevel))) {
+      for (const p of splitAtX([sp], roomBoundaryCuts(w, g, pieceLevel.id))) {
         const mx = w.a[0] + g.dir[0] * ((p.s + p.e) / 2);
         const mz = w.a[1] + g.dir[1] * ((p.s + p.e) / 2);
-        const pz = sideKeyAt(1, pieceLevel, mx, mz, facade);
-        const nzKey = sideKeyAt(-1, pieceLevel, mx, mz, facade);
+        const roomP = roomBeside(1, pieceLevel.id, mx, mz);
+        const roomN = roomBeside(-1, pieceLevel.id, mx, mz);
         const atStart = p.s <= xs + EPS;
         const atEnd = p.e >= xe - EPS;
-        const nxKey = p.hideS || (atStart && endHidden(endA, p.y0, p.y1)) ? '' : K.paintLight;
-        const pxKey = p.hideE || (atEnd && endHidden(endB, p.y0, p.y1)) ? '' : K.paintLight;
-        const onFloor = floorYs.some((f) => Math.abs(p.y0 - f) < 0.01);
-        const keys: BoxKeys = { pz, nz: nzKey, px: pxKey, nx: nxKey, ny: p.hideY0 || onFloor ? '' : K.paintLight, rest: K.paintLight };
-        emitBox(sets[pieceLevel], keys, p, w.thickness, w, matrix);
+        for (const q of splitAtY([p], tileLines([roomP, roomN], pieceLevel))) {
+          const y = (q.y0 + q.y1) / 2;
+          const pz = w.exterior && outside === 1 ? facade : faceKey(roomP, pieceLevel, y);
+          const nzKey = w.exterior && outside === -1 ? facade : faceKey(roomN, pieceLevel, y);
+          const nxKey = q.hideS || (atStart && endHidden(endA, q.y0, q.y1)) ? '' : K.paintLight;
+          const pxKey = q.hideE || (atEnd && endHidden(endB, q.y0, q.y1)) ? '' : K.paintLight;
+          const onFloor = floorYs.some((f) => Math.abs(q.y0 - f) < 0.01);
+          const keys: BoxKeys = { pz, nz: nzKey, px: pxKey, nx: nxKey, ny: q.hideY0 || onFloor ? '' : K.paintLight, py: q.hideY1 ? '' : K.paintLight, rest: K.paintLight };
+          emitBox(sets[pieceLevel.id], keys, q, w.thickness, w, matrix);
+        }
       }
     }
 
@@ -373,17 +379,23 @@ export function addWalls(sets: Record<LevelId, BucketSet>): void {
       const dirOut: [number, number] = c.end === 'a' ? [-g.dir[0], -g.dir[1]] : g.dir;
       const body = cornerSpan(c, g.length, 0, w.baseY, top);
       if (body) {
+        const cx = P[0] + (dirOut[0] * c.along) / 2;
+        const cz = P[1] + (dirOut[1] * c.along) / 2;
+        const ex = P[0] + dirOut[0] * (c.along + 0.1) + c.side * nx * 0.1;
+        const ez = P[1] + dirOut[1] * (c.along + 0.1) + c.side * nz * 0.1;
+        const endOutside = w.exterior && !pointInLevelOutline(lvl, ex, ez);
         for (const sp of splitAtY([body], floorYs)) {
           const midY = (sp.y0 + sp.y1) / 2;
-          const pieceLevel = levelForY(midY);
+          const pieceLevel = LEVEL_BY_ID[levelForY(midY)];
           const facade = facadeAt(midY);
-          const cx = P[0] + (dirOut[0] * c.along) / 2;
-          const cz = P[1] + (dirOut[1] * c.along) / 2;
-          const sideKey = sideKeyAt(c.side, pieceLevel, cx, cz, facade);
-          const ex = P[0] + dirOut[0] * (c.along + 0.1) + c.side * nx * 0.1;
-          const ez = P[1] + dirOut[1] * (c.along + 0.1) + c.side * nz * 0.1;
-          const endKey = w.exterior && !pointInLevelOutline(lvl, ex, ez) ? facade : paintKey(roomAt(pieceLevel, ex, ez)?.wallColor ?? WARM_WHITE);
-          emitCorner(sets[pieceLevel], sp, c, w.thickness, sideKey, endKey, K.paintLight, w, matrix);
+          const sideRoom = roomBeside(c.side, pieceLevel.id, cx, cz);
+          const endRoom = roomAt(pieceLevel.id, ex, ez);
+          for (const q of splitAtY([sp], tileLines([sideRoom, endRoom], pieceLevel))) {
+            const y = (q.y0 + q.y1) / 2;
+            const sideKey = w.exterior && c.side === outside ? facade : faceKey(sideRoom, pieceLevel, y);
+            const endKey = endOutside ? facade : faceKey(endRoom, pieceLevel, y);
+            emitCorner(sets[pieceLevel.id], q, c, w.thickness, sideKey, endKey, q.hideY1 ? '' : K.paintLight, w, matrix);
+          }
         }
       }
       if (hasBand && c.partnerExterior) {

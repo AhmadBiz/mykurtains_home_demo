@@ -6,11 +6,17 @@
  *
  * Everything here is pure three.js / React: no store access, no side effects beyond creating
  * GPU resources that `useDisposable` / `useInstancedMesh` free again. All units are metres.
+ *
+ * Texture convention: every geometry built here carries UVs in METRES (`boxMapUV`), so a PBR
+ * set configured for a 1 × 1 m surface (`usePbr(id, { size: [1, 1] })`) repeats at its
+ * real-world tile size whatever the part's dimensions, and one material serves every part.
  */
 import * as THREE from 'three';
 import { useEffect, useMemo } from 'react';
 import type { DependencyList } from 'react';
-import type { ColorOption } from '../../data/coverings';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { PbrSet, TexId } from '../materials';
 import { CASING_W, FRAME_FACE } from '../windows/geometry';
 
 // The window frame members that line the reveal (head, sill, jambs) are FRAME_FACE wide, and
@@ -48,6 +54,12 @@ export const mullionFrontZ = (reveal: number) => -0.3 * Math.max(0.02, finite(re
 
 /** Centre z of an inside-mounted part of the given depth: as deep in the reveal as the mullion allows. */
 export const insideMountZ = (reveal: number, depth: number) => mullionFrontZ(reveal) + 0.003 + depth / 2;
+
+/** True for catalogue colours darker than a mid grey (hardware is then anthracite instead of white). */
+export function isDark(hex: string): boolean {
+  const c = new THREE.Color(hex);
+  return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b < 0.18;
+}
 
 // ---------------------------------------------------------------------------------------------
 // Resource lifecycle
@@ -133,135 +145,125 @@ export function commitInstances(mesh: THREE.InstancedMesh, count: number): void 
 }
 
 // ---------------------------------------------------------------------------------------------
-// Shared unit geometries (scaled per mesh) and hardware materials — module singletons, never disposed
+// Shared unit geometries (scaled per mesh / instance) — module singletons, never disposed.
+// three r186 corrects instance normals for non-uniform scale, so scaling these is safe.
 // ---------------------------------------------------------------------------------------------
 /** 1 × 1 × 1 box centred on the origin. */
 export const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
-/** 1 × 1 plane in XY facing +Z. */
-export const UNIT_PLANE = new THREE.PlaneGeometry(1, 1);
 /** Cylinder of radius 1 and length 1 along the X axis (scale = [length, r, r]). */
 export const UNIT_CYL_X = new THREE.CylinderGeometry(1, 1, 1, 20, 1).rotateZ(Math.PI / 2);
 /** Cylinder of radius 1 and length 1 along the Y axis (scale = [r, length, r]). */
 export const UNIT_CYL_Y = new THREE.CylinderGeometry(1, 1, 1, 12, 1);
+/** Low-poly cylinders for cords, rungs, chain links (6 sides, open ends). */
+export const THIN_CYL_X = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true).rotateZ(Math.PI / 2);
+export const THIN_CYL_Y = new THREE.CylinderGeometry(1, 1, 1, 6, 1);
+/** Low-poly unit sphere for bead chains (scale = bead radius). */
+export const BEAD = new THREE.SphereGeometry(1, 6, 4);
 
-/** Hardware finishes shared by all slatted coverings. */
+// ---------------------------------------------------------------------------------------------
+// Hardware finishes shared by all slatted coverings (module singletons, never disposed)
+// ---------------------------------------------------------------------------------------------
+const std = (o: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial({ envMapIntensity: 1, ...o });
 export const HARDWARE = {
-  /** Painted steel / white plastic (brackets, headrails). */
-  white: new THREE.MeshStandardMaterial({ color: '#f3f2ee', roughness: 0.5, metalness: 0.05 }),
-  /** Nickel bead chain, cords. */
-  metal: new THREE.MeshStandardMaterial({ color: '#b7bbc1', roughness: 0.35, metalness: 0.75 }),
-  /** Dark bronze hinges. */
-  dark: new THREE.MeshStandardMaterial({ color: '#45464a', roughness: 0.45, metalness: 0.6 }),
+  /** White powder-coated aluminium / white plastic (cassettes, headrails, brackets, clips). */
+  white: std({ color: '#f3f2ee', roughness: 0.4, metalness: 0.25 }),
+  /** Anthracite powder coat, for the dark fabrics. */
+  anthracite: std({ color: '#3a3b3e', roughness: 0.4, metalness: 0.25 }),
+  /** Anodised aluminium tube. */
+  alu: std({ color: '#d4d6d9', roughness: 0.35, metalness: 0.6 }),
+  /** Nickel bead chain. */
+  metal: std({ color: '#b7bbc1', roughness: 0.3, metalness: 0.9 }),
+  /** Brushed nickel hinges / catches. */
+  nickel: std({ color: '#c9cbcf', roughness: 0.35, metalness: 0.9 }),
+  /** Dark bronze. */
+  dark: std({ color: '#45464a', roughness: 0.45, metalness: 0.6 }),
+  /** Off-white polyester cord. */
+  cord: std({ color: '#ece9e2', roughness: 0.9, metalness: 0 }),
+  /** Matt near-black: the unlit inside of a cassette slot / channel seen through its opening. */
+  shadow: std({ color: '#121214', roughness: 0.95, metalness: 0, envMapIntensity: 0.2 }),
   /** Clear acrylic tilt wand. */
-  clear: new THREE.MeshStandardMaterial({ color: '#e4e8ee', roughness: 0.2, metalness: 0.1, transparent: true, opacity: 0.65 }),
+  clear: new THREE.MeshPhysicalMaterial({
+    color: '#e6edf4',
+    roughness: 0.08,
+    metalness: 0,
+    transparent: true,
+    opacity: 0.5,
+    clearcoat: 1,
+    clearcoatRoughness: 0.1,
+    envMapIntensity: 1,
+  }),
 };
 
 // ---------------------------------------------------------------------------------------------
-// Colours & materials
+// Finishes (slats, vanes, panels, fabric sheets)
 // ---------------------------------------------------------------------------------------------
-/** Lighten (amount > 0) or darken (amount < 0) a hex colour; returns a hex string. */
-export function shade(hex: string, amount: number): string {
-  const c = new THREE.Color(hex);
-  c.lerp(new THREE.Color(amount > 0 ? '#ffffff' : '#000000'), clamp01(Math.abs(amount)));
-  return `#${c.getHexString()}`;
-}
-
-export interface SlatMaterialOptions {
+export interface FinishOptions {
+  color: THREE.ColorRepresentation;
+  /** Multiplies the colour — brightens an albedo map toward the catalogue swatch. */
+  tint?: THREE.Color;
+  /** PBR maps from `usePbr(id, { size: [1, 1] })`; geometry UVs must then be in metres. */
+  maps?: PbrSet | null;
   roughness?: number;
   metalness?: number;
-  /** Baked-colour texture (the colour is then white so the map shows as drawn). */
-  map?: THREE.Texture | null;
   side?: THREE.Side;
   /** 0..1; < 1 makes the material transparent. */
   opacity?: number;
+  envMapIntensity?: number;
+  clearcoat?: number;
+  clearcoatRoughness?: number;
+  sheen?: number;
+  sheenColor?: THREE.ColorRepresentation;
+  sheenRoughness?: number;
 }
 
-/**
- * A MeshStandardMaterial for a slat / vane / panel from a catalogue colour. The explicit options
- * win over the catalogue hints, which win over the defaults. The caller owns disposal.
- */
-export function makeSlatMaterial(color: ColorOption, o: SlatMaterialOptions = {}): THREE.MeshStandardMaterial {
-  const map = o.map ?? null;
+/** A MeshPhysicalMaterial for a finish. The caller owns disposal. */
+export function makeFinish(o: FinishOptions): THREE.MeshPhysicalMaterial {
   const opacity = clamp01(finite(o.opacity ?? 1, 1));
-  return new THREE.MeshStandardMaterial({
-    color: map ? '#ffffff' : color.hex,
-    map,
-    roughness: o.roughness ?? color.roughness ?? 0.6,
-    metalness: o.metalness ?? color.metalness ?? 0,
+  const m = new THREE.MeshPhysicalMaterial({
+    color: o.maps?.map ? '#ffffff' : o.color,
+    map: o.maps?.map ?? null,
+    normalMap: o.maps?.normalMap ?? null,
+    roughnessMap: o.maps?.roughnessMap ?? null,
+    roughness: o.roughness ?? 0.6,
+    metalness: o.metalness ?? 0,
     side: o.side ?? THREE.FrontSide,
     transparent: opacity < 1,
     opacity,
+    envMapIntensity: o.envMapIntensity ?? 1,
+    clearcoat: o.clearcoat ?? 0,
+    clearcoatRoughness: o.clearcoatRoughness ?? 0.3,
   });
-}
-
-// ---------------------------------------------------------------------------------------------
-// Procedural wood grain (shared per colour, cached for the life of the page)
-// ---------------------------------------------------------------------------------------------
-const grainCache = new Map<string, THREE.CanvasTexture>();
-
-/**
- * A tileable wood-grain CanvasTexture: the base colour with accent streaks running along U.
- * One texture per (hex, accent) pair is ever created; the same object is shared by every mesh
- * that uses it, so callers must NOT dispose it. Scale the grain with `scaleUV` on the geometry
- * (one texture period ≈ GRAIN_PERIOD metres along the grain).
- */
-export function woodGrainTexture(hex: string, accent?: string): THREE.CanvasTexture {
-  const dark = accent ?? shade(hex, -0.14);
-  const key = `${hex}|${dark}`;
-  const cached = grainCache.get(key);
-  if (cached) return cached;
-
-  const W = 512;
-  const H = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.fillStyle = hex;
-    ctx.fillRect(0, 0, W, H);
-    // Deterministic pseudo-random so every build of the texture is identical.
-    let seed = 20240917;
-    const rnd = () => {
-      seed = (seed * 16807) % 2147483647;
-      return seed / 2147483647;
-    };
-    const light = shade(hex, 0.1);
-    const TWO_PI_W = (Math.PI * 2) / W; // integer multiples of this tile seamlessly in U
-    ctx.lineCap = 'round';
-    for (let i = 0; i < 90; i++) {
-      const y0 = rnd() * H;
-      const amp = 1.5 + rnd() * 5;
-      const k = 1 + Math.floor(rnd() * 5);
-      const phase = rnd() * Math.PI * 2;
-      const isDark = rnd() < 0.7;
-      ctx.strokeStyle = isDark ? dark : light;
-      ctx.globalAlpha = isDark ? 0.1 + rnd() * 0.28 : 0.12 + rnd() * 0.22;
-      ctx.lineWidth = 0.6 + rnd() * 2.4;
-      ctx.beginPath();
-      for (let x = 0; x <= W; x += 8) {
-        const y = y0 + Math.sin(x * k * TWO_PI_W + phase) * amp + Math.sin(x * 3 * k * TWO_PI_W + phase * 2) * amp * 0.3;
-        if (x === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
+  if (o.maps?.normalMap) m.normalScale.copy(o.maps.normalScale);
+  if (o.tint) m.color.multiply(o.tint);
+  if (o.sheen !== undefined) {
+    m.sheen = o.sheen;
+    m.sheenColor = new THREE.Color(o.sheenColor ?? '#ffffff');
+    m.sheenRoughness = o.sheenRoughness ?? 0.8;
   }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  tex.needsUpdate = true;
-  grainCache.set(key, tex);
-  return tex;
+  return m;
 }
 
-/** Length of one grain-texture period along the grain (m). */
-export const GRAIN_PERIOD = 0.45;
+/** Real wood texture for a wood catalogue colour: which pack id, how to turn it so the grain runs along U, and a tint toward the swatch. */
+export interface WoodFinish {
+  tex: TexId;
+  rotation: number;
+  tint: THREE.Color;
+}
 
-/** Multiplies the UVs of a geometry in place (texture tiling baked into the geometry). */
+// kitchen_wood is a plain straight-grained veneer (grain along V in the image, mean #6f5d48) — the
+// closest thing in the pack to natural oak once brightened; dark_wood (grain along U, mean
+// #5c2a17) is a dark red-brown that passes for walnut. Tints are linear multipliers of the map.
+const WOOD_FINISHES: Record<string, WoodFinish> = {
+  oak: { tex: 'kitchen_wood', rotation: Math.PI / 2, tint: new THREE.Color(2.2, 2.0, 1.5) },
+  walnut: { tex: 'dark_wood', rotation: 0, tint: new THREE.Color(1.2, 1.6, 1.7) },
+};
+/** The wood finish of a catalogue colour id, or null for painted / aluminium colours. Stable identity. */
+export const woodFinish = (colorId: string): WoodFinish | null => WOOD_FINISHES[colorId] ?? null;
+
+// ---------------------------------------------------------------------------------------------
+// UV helpers
+// ---------------------------------------------------------------------------------------------
+/** Multiplies the UVs of a geometry in place. */
 export function scaleUV(geo: THREE.BufferGeometry, su: number, sv: number): THREE.BufferGeometry {
   const uv = geo.getAttribute('uv');
   if (uv) {
@@ -271,7 +273,7 @@ export function scaleUV(geo: THREE.BufferGeometry, su: number, sv: number): THRE
   return geo;
 }
 
-/** Swaps U and V in place so a grain drawn along U runs along the geometry's V direction. */
+/** Swaps U and V in place. */
 export function swapUV(geo: THREE.BufferGeometry): THREE.BufferGeometry {
   const uv = geo.getAttribute('uv');
   if (uv) {
@@ -282,24 +284,144 @@ export function swapUV(geo: THREE.BufferGeometry): THREE.BufferGeometry {
 }
 
 /**
- * A BoxGeometry translated to (x, y, z) whose UVs tile the wood grain along its long axis
- * (`along` = 'x' for rails / slats, 'y' for stiles). Harmless for untextured materials.
+ * Rewrites the UVs of a box-like geometry (BoxGeometry, RoundedBoxGeometry, bent boxes) from
+ * its vertex positions: every face is mapped planarly along its dominant normal axis with
+ * 1 UV unit = 1 metre, so a texture continues around the edges like real grain. `along = 'y'`
+ * swaps U and V so a texture whose grain runs along U follows the geometry's Y (stiles).
  */
-export function grainBox(w: number, h: number, d: number, x = 0, y = 0, z = 0, along: 'x' | 'y' = 'x'): THREE.BoxGeometry {
-  const geo = new THREE.BoxGeometry(Math.max(1e-4, w), Math.max(1e-4, h), Math.max(1e-4, d));
-  if (along === 'y') {
-    swapUV(geo);
-    scaleUV(geo, h / GRAIN_PERIOD, 1);
-  } else {
-    scaleUV(geo, w / GRAIN_PERIOD, 1);
+export function boxMapUV(geo: THREE.BufferGeometry, along: 'x' | 'y' = 'x'): THREE.BufferGeometry {
+  const pos = geo.getAttribute('position');
+  const nor = geo.getAttribute('normal');
+  const uv = geo.getAttribute('uv');
+  if (!pos || !nor || !uv) return geo;
+  for (let i = 0; i < pos.count; i++) {
+    const nx = Math.abs(nor.getX(i));
+    const ny = Math.abs(nor.getY(i));
+    const nz = Math.abs(nor.getZ(i));
+    let u: number;
+    let v: number;
+    if (nx >= ny && nx >= nz) {
+      u = pos.getZ(i);
+      v = pos.getY(i);
+    } else if (ny >= nz) {
+      u = pos.getX(i);
+      v = pos.getZ(i);
+    } else {
+      u = pos.getX(i);
+      v = pos.getY(i);
+    }
+    if (along === 'y') uv.setXY(i, v, u);
+    else uv.setXY(i, u, v);
   }
-  geo.translate(x, y, z);
+  uv.needsUpdate = true;
   return geo;
 }
 
 // ---------------------------------------------------------------------------------------------
-// Chain loop (roller / vertical blind control chain)
+// Geometry builders (all with metric UVs)
 // ---------------------------------------------------------------------------------------------
+/**
+ * A RoundedBoxGeometry of w × h × d with edge radius r, translated to (x, y, z). `segments` = 1
+ * gives a 3-step rounding (enough for r ≤ 4 mm seen from 1 m), 2 a 5-step one.
+ */
+export function roundedBox(w: number, h: number, d: number, r = 0.003, x = 0, y = 0, z = 0, along: 'x' | 'y' = 'x', segments = 1): THREE.BufferGeometry {
+  const geo = new RoundedBoxGeometry(Math.max(1e-4, w), Math.max(1e-4, h), Math.max(1e-4, d), segments, Math.max(1e-5, r));
+  boxMapUV(geo, along);
+  geo.translate(x, y, z);
+  return geo;
+}
+
+/** Merges parts (indexed or not) into one non-indexed geometry and disposes the parts. */
+export function mergeParts(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const flat = parts.map((g) => {
+    if (!g.index) return g;
+    const f = g.toNonIndexed();
+    g.dispose();
+    return f;
+  });
+  const merged = mergeGeometries(flat, false);
+  for (const g of flat) g.dispose();
+  return merged ?? new THREE.BufferGeometry();
+}
+
+/**
+ * A thin slab of w × t × d (X × Y × Z) whose long edges (±Z) are lifted by `sag`: the curved
+ * section of an aluminium venetian slat, with real thickness so it never z-fights or vanishes
+ * edge-on. Smooth normals across the curve, metric UVs.
+ */
+export function curvedSlabGeometry(w: number, t: number, d: number, sag: number, segments = 6): THREE.BufferGeometry {
+  const geo = new THREE.BoxGeometry(Math.max(1e-4, w), Math.max(1e-4, t), Math.max(1e-4, d), 1, 1, segments);
+  const pos = geo.getAttribute('position');
+  for (let i = 0; i < pos.count; i++) {
+    const s = (2 * pos.getZ(i)) / d; // -1 at the back edge, +1 at the front edge
+    pos.setY(i, pos.getY(i) + sag * s * s);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return boxMapUV(geo);
+}
+
+/**
+ * A louvre with an elliptical section: length along X, `thick` along Y, `width` along Z. The
+ * ellipse is baked into the vertices (normals stay correct); UVs: U along the length, V around.
+ */
+export function ellipticalSlatGeometry(len: number, thick: number, width: number, radial = 14): THREE.BufferGeometry {
+  const geo = new THREE.CylinderGeometry(1, 1, 1, radial, 1, false);
+  geo.rotateZ(Math.PI / 2);
+  geo.scale(Math.max(1e-4, len), Math.max(1e-5, thick / 2), Math.max(1e-5, width / 2));
+  const a = width / 2;
+  const b = thick / 2;
+  const perimeter = Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+  scaleUV(geo, perimeter, len);
+  return swapUV(geo);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Chains & cords
+// ---------------------------------------------------------------------------------------------
+/**
+ * Bead centres along a hanging "stadium" loop: top at y = 0, strands at x = ±r, bottom arc at
+ * y = −len, beads `pitch` apart along the loop. Returns [x0, y0, x1, y1, …].
+ */
+export function beadLoop(r: number, len: number, pitch: number): Float32Array {
+  const rr = Math.max(0.004, r);
+  const L = Math.max(0.02, finite(len, 0.2));
+  const p = Math.max(0.002, pitch);
+  const total = 2 * L + 2 * Math.PI * rr;
+  const n = Math.max(4, Math.floor(total / p));
+  const out = new Float32Array(2 * n);
+  for (let i = 0; i < n; i++) {
+    const s = (i * total) / n;
+    let x: number;
+    let y: number;
+    if (s < L) {
+      x = rr;
+      y = -s;
+    } else if (s < L + Math.PI * rr) {
+      const a = (s - L) / rr;
+      x = rr * Math.cos(a);
+      y = -L - rr * Math.sin(a);
+    } else if (s < 2 * L + Math.PI * rr) {
+      x = -rr;
+      y = -L + (s - L - Math.PI * rr);
+    } else {
+      const a = (s - 2 * L - Math.PI * rr) / rr;
+      x = -rr * Math.cos(a);
+      y = rr * Math.sin(a);
+    }
+    out[2 * i] = x;
+    out[2 * i + 1] = y;
+  }
+  return out;
+}
+
+/** Fills an InstancedMesh of BEAD spheres along a `beadLoop` hung from (x, y, z). */
+export function fillBeads(mesh: THREE.InstancedMesh, loop: Float32Array, x: number, y: number, z: number, radius: number): void {
+  const n = Math.min(loop.length / 2, mesh.instanceMatrix.count);
+  for (let i = 0; i < n; i++) setInstance(mesh, i, x + loop[2 * i], y + loop[2 * i + 1], z, 0, 0, 0, radius, radius, radius);
+  commitInstances(mesh, n);
+}
+
 /**
  * Closed "stadium" path in the XY plane: top at y = 0, strands at x = ±r down to y = -len.
  * `t` is split into four EQUAL quarters (right strand, bottom arc, left strand, top arc) and the
@@ -341,7 +463,7 @@ class StadiumCurve extends THREE.Curve<THREE.Vector3> {
   }
 }
 
-/** A thin tube following a hanging loop (bead chain / cord loop). Origin = top of the loop. */
+/** A thin tube following a hanging loop (cord loop). Origin = top of the loop. */
 export function chainLoopGeometry(r: number, len: number, tube: number): THREE.TubeGeometry {
   return new THREE.TubeGeometry(new StadiumCurve(Math.max(0.004, r), Math.max(0.02, finite(len, 0.2))), 64, Math.max(0.0005, tube), 5, true);
 }

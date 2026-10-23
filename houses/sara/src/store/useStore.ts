@@ -189,6 +189,7 @@ export function useT() {
  *   window.__house.goToWindow('w-ch1-e')
  *   window.__house.setCovering('w-ch1-e', { type: 'roller', color: 'sand', open: 0.3 })
  *   window.__house.state()                   — current store snapshot
+ *   window.__house.scene / .gl               — the three.js scene and renderer (set by Scene.tsx once mounted)
  */
 export function exposeDebugApi() {
   const api = {

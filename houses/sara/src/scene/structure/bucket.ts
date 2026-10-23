@@ -7,7 +7,7 @@ import * as THREE from 'three';
  *
  * UVs are generated from WORLD positions in metres (u,v = horizontal distance / height for
  * vertical faces, x / z for horizontal faces) so textures with `repeat = 1 / sizeInMetres`
- * tile seamlessly across adjacent pieces.
+ * tile seamlessly across adjacent pieces and at true real-world scale.
  */
 
 export interface MergedPart {
@@ -16,6 +16,10 @@ export interface MergedPart {
 }
 
 const QUAD_INDEX = [0, 1, 2, 0, 2, 3];
+
+const tmpA = new THREE.Vector3();
+const tmpB = new THREE.Vector3();
+const tmpN = new THREE.Vector3();
 
 export class Bucket {
   private readonly pos: number[] = [];
@@ -26,18 +30,65 @@ export class Bucket {
     return this.pos.length === 0;
   }
 
-  /** Four corners in CCW order as seen from the front, one normal, four uvs. */
+  /** Number of triangles appended so far. */
+  get triangles(): number {
+    return this.pos.length / 9;
+  }
+
+  private push(v: THREE.Vector3, n: THREE.Vector3, uv: readonly [number, number]): void {
+    this.pos.push(v.x, v.y, v.z);
+    this.nor.push(n.x, n.y, n.z);
+    this.uv.push(uv[0], uv[1]);
+  }
+
+  /** Four corners in CCW order as seen from the front, one flat normal, four uvs. */
   quad(p: readonly THREE.Vector3[], n: THREE.Vector3, uv: readonly (readonly [number, number])[]): void {
-    for (const i of QUAD_INDEX) {
-      const v = p[i];
-      this.pos.push(v.x, v.y, v.z);
-      this.nor.push(n.x, n.y, n.z);
-      this.uv.push(uv[i][0], uv[i][1]);
+    for (const i of QUAD_INDEX) this.push(p[i], n, uv[i]);
+  }
+
+  /** Four corners with a normal per vertex (smooth shading across adjacent quads). */
+  quadSmooth(p: readonly THREE.Vector3[], n: readonly THREE.Vector3[], uv: readonly (readonly [number, number])[]): void {
+    for (const i of QUAD_INDEX) this.push(p[i], n[i], uv[i]);
+  }
+
+  /**
+   * Four corners in any consistent order: the winding is flipped when it disagrees with `n`, so
+   * callers that build corners in a local frame need not reason about the final orientation.
+   */
+  quadOriented(p: readonly THREE.Vector3[], n: THREE.Vector3, uv: readonly (readonly [number, number])[]): void {
+    tmpA.subVectors(p[1], p[0]);
+    tmpB.subVectors(p[3], p[0]);
+    tmpN.crossVectors(tmpA, tmpB);
+    if (tmpN.dot(n) >= 0) {
+      this.quad(p, n, uv);
+    } else {
+      for (const i of [0, 3, 2, 0, 2, 1]) this.push(p[i], n, uv[i]);
     }
   }
 
-  /** Appends any BufferGeometry (indexed or not), transformed by `matrix`. Does not dispose the input. */
-  addGeometry(geometry: THREE.BufferGeometry, matrix?: THREE.Matrix4): void {
+  /** One triangle, winding corrected to face `n`. */
+  tri(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, n: THREE.Vector3, uv: readonly (readonly [number, number])[]): void {
+    tmpA.subVectors(b, a);
+    tmpB.subVectors(c, a);
+    tmpN.crossVectors(tmpA, tmpB);
+    if (tmpN.dot(n) >= 0) {
+      this.push(a, n, uv[0]);
+      this.push(b, n, uv[1]);
+      this.push(c, n, uv[2]);
+    } else {
+      this.push(a, n, uv[0]);
+      this.push(c, n, uv[2]);
+      this.push(b, n, uv[1]);
+    }
+  }
+
+  /**
+   * Appends any BufferGeometry (indexed or not), transformed by `matrix`. Does not dispose the
+   * input. With `worldUvScale`, the geometry's own UVs are replaced by the world-metre projection
+   * used everywhere else in the structure (so a cylinder or rounded box takes the same texture
+   * scale as the boxes around it).
+   */
+  addGeometry(geometry: THREE.BufferGeometry, matrix?: THREE.Matrix4, worldUvScale?: number): void {
     const g = geometry.index ? geometry.toNonIndexed() : geometry.clone();
     if (matrix) g.applyMatrix4(matrix);
     const p = g.getAttribute('position');
@@ -45,8 +96,18 @@ export class Bucket {
     const u = g.getAttribute('uv');
     for (let i = 0; i < p.count; i++) {
       this.pos.push(p.getX(i), p.getY(i), p.getZ(i));
-      this.nor.push(n ? n.getX(i) : 0, n ? n.getY(i) : 1, n ? n.getZ(i) : 0);
-      this.uv.push(u ? u.getX(i) : 0, u ? u.getY(i) : 0);
+      const nx = n ? n.getX(i) : 0;
+      const ny = n ? n.getY(i) : 1;
+      const nz = n ? n.getZ(i) : 0;
+      this.nor.push(nx, ny, nz);
+      if (worldUvScale !== undefined) {
+        tmpA.set(p.getX(i), p.getY(i), p.getZ(i));
+        tmpN.set(nx, ny, nz);
+        const w = worldUV(tmpA, tmpN, worldUvScale);
+        this.uv.push(w[0], w[1]);
+      } else {
+        this.uv.push(u ? u.getX(i) : 0, u ? u.getY(i) : 0);
+      }
     }
     g.dispose();
   }
@@ -72,6 +133,13 @@ export class BucketSet {
       this.buckets.set(key, b);
     }
     return b;
+  }
+
+  /** Total triangles across every bucket (for budget reporting). */
+  get triangles(): number {
+    let n = 0;
+    for (const b of this.buckets.values()) n += b.triangles;
+    return n;
   }
 
   build(): MergedPart[] {
@@ -127,7 +195,7 @@ const worldNormal = new THREE.Vector3();
 export const IDENTITY = new THREE.Matrix4();
 
 /** World-space UV in metres for a vertex on a face with the given world normal. */
-function worldUV(p: THREE.Vector3, n: THREE.Vector3, scale: number): [number, number] {
+export function worldUV(p: THREE.Vector3, n: THREE.Vector3, scale: number): [number, number] {
   if (Math.abs(n.y) > 0.5) return [p.x * scale, p.z * scale];
   const tx = n.z;
   const tz = -n.x;
@@ -157,6 +225,17 @@ export function addBox(set: BucketSet, keys: BoxKeys, box: BoxSpec, matrix: THRE
     const uvs = corners.map((c) => worldUV(c, worldNormal, uvScale));
     set.get(key).quad(corners, worldNormal, uvs);
   }
+}
+
+/**
+ * Appends one quad given by four corners in the frame of `matrix` with a local normal; the
+ * winding is corrected automatically. UVs are the world-metre projection.
+ */
+export function addQuad(set: BucketSet, key: string, local: readonly THREE.Vector3[], localNormal: THREE.Vector3, matrix: THREE.Matrix4, uvScale = 1): void {
+  for (let i = 0; i < 4; i++) corners[i].copy(local[i]).applyMatrix4(matrix);
+  worldNormal.copy(localNormal).transformDirection(matrix);
+  const uvs = corners.map((c) => worldUV(c, worldNormal, uvScale));
+  set.get(key).quadOriented(corners, worldNormal, uvs);
 }
 
 /** Rotation about Y by `yaw`, then translation — the wall / flight local frame used across the house. */

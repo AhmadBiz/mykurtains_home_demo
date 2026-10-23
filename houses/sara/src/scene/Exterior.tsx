@@ -1,6 +1,9 @@
 /**
- * Everything outside the walls: lawn + street + driveway + walkway, exterior steps, porch,
- * balcony, side landing, hip roofs and landscaping. Sub-components live in ./exterior.
+ * Everything outside the walls: lawn + street + driveway + walkway + planting beds, exterior
+ * steps, porch, balcony, side landing, the hip roof (one exact surface over the union of the roof
+ * rectangles) and landscaping. Sub-components live in ./exterior; every textured surface uses the
+ * shared texture pack at real-world scale (UVs in metres, see exterior/geom.ts and
+ * exterior/materials.ts) and repeated parts are merged into single geometries.
  */
 import { Ground } from './exterior/Ground';
 import { ExteriorSteps } from './exterior/Steps';

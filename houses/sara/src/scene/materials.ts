@@ -74,7 +74,12 @@ export function usePbr(id: TexId, o: PbrOptions = {}): PbrSet {
       props: { normalScale: new THREE.Vector2(o.normalScale ?? 1, o.normalScale ?? 1) },
       metres: entry.metres,
     };
-    set.props = { map: set.map, normalMap: set.normalMap, roughnessMap: set.roughnessMap, normalScale: set.normalScale };
+    // Only the maps that exist: three warns ("parameter 'map' has value of undefined") when a
+    // material constructor receives an explicit undefined.
+    set.props = { normalScale: set.normalScale };
+    if (set.map) set.props.map = set.map;
+    if (set.normalMap) set.props.normalMap = set.normalMap;
+    if (set.roughnessMap) set.props.roughnessMap = set.roughnessMap;
     return set;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diff, nor, rough, o.size?.[0], o.size?.[1], o.repeat?.[0], o.repeat?.[1], o.rotation, o.offset?.[0], o.offset?.[1], o.anisotropy, o.normalScale]);

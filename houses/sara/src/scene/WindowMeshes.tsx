@@ -16,9 +16,9 @@ export function WindowMeshes() {
   const orbitLevel = useStore((s) => s.orbitLevel);
   const maxLevel = mode === 'orbit' ? LEVEL_ORDER.indexOf(orbitLevel) : LEVEL_ORDER.length - 1;
 
-  // Gentle pulse of the selected window's amber outline (one shared material, one callback).
+  // Gentle pulse of the selected window's thin amber ring (one shared material, one callback).
   useFrame(({ clock }) => {
-    mats.hiSelected.emissiveIntensity = 0.9 + 0.35 * Math.sin(clock.elapsedTime * 4);
+    mats.hiSelected.emissiveIntensity = 1.1 + 0.4 * Math.sin(clock.elapsedTime * 4);
   });
 
   return (

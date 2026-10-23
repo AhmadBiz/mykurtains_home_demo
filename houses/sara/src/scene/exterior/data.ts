@@ -47,28 +47,36 @@ export const PAVING_LIFT = 0.02;
 export const SMALL_ROOF_TOP = 3.02;
 export const SMALL_ROOF_THICKNESS = 0.12;
 
+/** Rear patio slab at the foot of the balcony stairs. */
+export const PATIO = { w: 3.2, d: 2.6 };
+
 export const COLORS = {
-  concrete: '#cbc8c0',
-  concreteDark: '#b5b2aa',
-  asphalt: '#8f8f8b',
-  road: '#4b4c4e',
-  curb: '#bdbab2',
-  fascia: '#ebe8e1',
-  soffit: '#d8d4cb',
-  shingle: '#3a3b3e',
-  membrane: '#6a6c70',
-  deck: '#8a6a4b',
-  post: '#7a5c40',
-  rail: '#8c6d4f',
-  trunk: '#6b4e34',
-  fence: '#b08d62',
-  hedge: '#3f6b3a',
-  mailbox: '#2b2b2e',
+  /** Painted / aluminium trim (fascia, soffit, columns). */
+  trim: '#f1eee7',
+  curb: '#d6d3cb',
+  concrete: '#cfccc4',
+  /** Bark-mulch beds (finding 3: ~15 % albedo, no longer a 4 % black rectangle). */
+  mulch: '#5a4636',
+  rock: '#8b857b',
+  /** Split-face block of the porch body and the driveway retaining wall. */
+  block: '#d6d3cb',
+  /** Ballasted (light gravel) membrane of the flat porch / balcony roofs. */
+  membrane: '#b9b7b0',
+  /** Foliage albedos (finding 1): real leaf values, dark → lit side of each species. */
+  leafDark: '#2d4a22',
+  leafLight: '#557a3a',
+  coniferDark: '#2a472c',
+  coniferLight: '#4a7542',
+  hedgeDark: '#2f4d27',
+  hedgeLight: '#52803f',
+  /** Distant tree-line billboards: tints a light atlas (≈ 0.4 linear) down to a dark, desaturated far-foliage albedo. */
+  farTree: '#5f7a55',
+  mailbox: '#232326',
   flag: '#c8352b',
 } as const;
 
 /** Balcony railing / stair constants shared by Platforms.tsx and Steps.tsx. */
-export const RAILING = { postSize: 0.1, height: 1.07, balusterSize: 0.035, balusterSpacing: 0.125 } as const;
+export const RAILING = { postSize: 0.1, height: 1.07, balusterRadius: 0.008, balusterSpacing: 0.11, topRailW: 0.09, topRailH: 0.045 } as const;
 
 /** X positions of the two balcony-stair handrails (inside the stair width), shared with the deck posts. */
 export function balconyStairRailX(): [number, number] {

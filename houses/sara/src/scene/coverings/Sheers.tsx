@@ -1,93 +1,122 @@
 /**
- * SHEERS (voilages): one wide gathered voile covering the opening, made of two panels that meet at
- * the centre when closed and draw back to the sides (outer edges fixed, inner edges travel) as
- * `open` → 1. Hangs from a slim white rod on two small brackets.
+ * SHEERS (voilages) — the client's installation standard (ARCHITECTURE.md "Installation
+ * standard"): a slim white aluminium track flush under the ceiling and two ripple-fold voile
+ * panels hanging from carriers by snap tape — a continuous, uniform S-wave from the top edge to
+ * the hem, floor length, meeting at the centre when drawn (open = 0) and compressing into a
+ * neat stack at each end of the track as `open` → 1 (constant wave count, tighter waves).
  *
- * Also rendered by <Curtains/> as the "sheer layer" behind drapes (white voile, closed).
+ * Also rendered by <Curtains/> as the sheer layer of a double track (`layer`): then the voile is
+ * always drawn closed on the inner channel and the track itself is drawn by the curtains.
+ *
+ * The voile is a veil, not a lit sheet: opacity 0.3–0.45 from the colour's translucency, a dim
+ * albedo and a faint indoor envMap (fabric.ts makeVoileMaterial) keep it a little darker than
+ * the view behind it, and the linen weave at 0.25 m tiling gives it a moiré instead of a flat
+ * milky plane.
  *
  * Local frame (see ./types.ts): origin = centre of the opening on the interior wall face,
- * +X along the wall, +Y up, +Z into the room. The voile hangs at z ≈ 0.04 (behind drapes at 0.10).
- * Pure & prop-driven: no store access, geometry rebuilt only when the quantised `open` changes.
+ * +X along the wall, +Y up, +Z into the room. The inner channel is at z = SHEER_Z, so the wave
+ * troughs (z ≥ 0.07) clear the 6.7 cm window stool. Pure & prop-driven: no store access; the
+ * panel geometry is rebuilt only when the quantised `open` changes.
  */
 import * as THREE from 'three';
-import type { CoveringProps } from './types';
+import { useLayoutEffect, useRef } from 'react';
+import { useIndoorEnvironment } from '../Lighting';
 import { floorY } from './types';
-import { buildPleatedPanel, finite, lerp, makeFabricMaterial, quantizeOpen, safeSize, useDisposable } from './fabric';
+import {
+  GLIDER,
+  TRACK_H,
+  WAVE_PERIOD,
+  buildTrack,
+  buildWavePanel,
+  carrierXs,
+  ceilingLocal,
+  clamp,
+  fillInstances,
+  finite,
+  lerp,
+  makeTrackMaterial,
+  makeSlotMaterial,
+  makeVoileMaterial,
+  quantizeOpen,
+  safeSize,
+  stackBackFor,
+  useDisposable,
+  useFabricMaps,
+} from './fabric';
+import type { FabricProps } from './fabric';
 
-/** Depth of the voile in front of the wall face (m). */
-const PANEL_Z = 0.04;
-const ROD_RADIUS = 0.008;
-/** The rod sits this far above the head of the opening (m). */
-const ROD_LIFT = 0.07;
-/** Flat fabric width ÷ gathered width. Voile is gathered generously. */
-const FULLNESS = 2.5;
-/** Pleats per metre of flat fabric. */
-const PLEATS_PER_M = 7;
-/** Width of the narrow stack each panel gathers into when fully drawn back (m). */
-const STACK_W = 0.15;
-/** Windows whose sill is below this get floor-length panels (m). */
-const FLOOR_LENGTH_SILL = 1.1;
+/** Depth of the sheer channel in front of the wall face (m). */
+export const SHEER_Z = 0.1;
+/** Wave depth (±, m): 6 cm peak-to-peak drawn, a little deeper in the stack (troughs still clear the stool horns). */
+const AMP_CLOSED = 0.03;
+const AMP_OPEN = 0.033;
+/** The two panels overlap this much at the centre when drawn. */
+const OVERLAP = 0.02;
+/** Opacity range of the voile (1 − translucency, so the catalogue's 0.6 → 0.4). */
+const OPACITY_MIN = 0.3;
+const OPACITY_MAX = 0.45;
 
-export function Sheers(props: CoveringProps) {
-  const { sill, isDoor, state, color } = props;
+export interface SheersProps extends FabricProps {
+  /** Rendered by <Curtains/> on the inner channel of its double track: no track of its own. */
+  layer?: boolean;
+}
+
+export function Sheers(props: SheersProps) {
+  const { state, color, layer } = props;
   const width = safeSize(props.width);
   const height = safeSize(props.height);
   const open = quantizeOpen(state.open, 24);
 
-  // ---- vertical extent ------------------------------------------------------------------------
-  const rodY = height / 2 + ROD_LIFT;
-  const floorLength = isDoor || finite(sill, 0) < FLOOR_LENGTH_SILL;
-  const bottom = floorLength ? finite(floorY(props), -height / 2) + 0.01 : -height / 2 - 0.15;
-  const top = rodY - 0.02; // header hangs just under the rod
-  const panelH = Math.max(0.05, top - bottom);
-  const panelCY = (top + bottom) / 2;
+  // ---- vertical extent: carriers under the channel → hem 1 cm above the floor ------------------
+  const ceil = ceilingLocal(props);
+  const hem = finite(floorY(props), -height / 2) + 0.01;
+  const fabricTop = ceil - TRACK_H - GLIDER.drop;
+  const panelH = Math.max(0.05, fabricTop - hem);
+  const panelY = hem + panelH / 2;
 
-  // ---- horizontal extent ----------------------------------------------------------------------
-  // Outer edges are fixed at ±outerX; closed, both panels reach x = 0 and meet at the centre.
-  const outerX = width / 2 + 0.2;
-  const fullW = outerX;
-  const panelW = lerp(fullW, STACK_W, open);
-  // Fixed pleat count → pleats get denser as the panel is bunched up toward the side.
-  const pleats = Math.max(4, Math.round(fullW * FULLNESS * PLEATS_PER_M));
-  const amplitude = lerp(0.018, 0.028, open);
+  // ---- horizontal extent: outer edges fixed at the track ends, inner edges travel --------------
+  const stackBack = stackBackFor(width);
+  const trackLen = width + 2 * stackBack;
+  const closedCovered = trackLen / 2 + OVERLAP / 2;
+  const waves = Math.max(2, Math.round(closedCovered / WAVE_PERIOD));
+  const covered = lerp(closedCovered, stackBack, open);
+  const amplitude = lerp(AMP_CLOSED, AMP_OPEN, open);
+  const leftX = -trackLen / 2 + covered / 2;
+  const rightX = trackLen / 2 - covered / 2;
 
-  const panel = useDisposable(
-    () => buildPleatedPanel({ width: panelW, height: panelH, pleats, amplitude, headerDamp: 0.6, segY: 6 }),
-    [panelW, panelH, pleats, amplitude],
-  );
+  // ---- geometry & materials -------------------------------------------------------------------
+  const panel = useDisposable(() => buildWavePanel({ covered, height: panelH, waves, amplitude, segY: 10 }), [covered, panelH, waves, amplitude]);
+  const maps = useFabricMaps('linen', 0.6);
+  const env = useIndoorEnvironment();
+  const opacity = clamp(1 - finite(color.translucency ?? 0.6, 0.6), OPACITY_MIN, OPACITY_MAX);
+  const voile = useDisposable(() => makeVoileMaterial(color.hex, opacity, maps, env), [color.hex, opacity, maps, env]);
 
-  const opacity = 1 - (color.translucency ?? 0.55);
-  const voile = useDisposable(
-    () => makeFabricMaterial({ hex: color.hex, roughness: 1, opacity, depthWrite: false }),
-    [color.hex, opacity],
-  );
-
-  // ---- slim white rod + finials + brackets ----------------------------------------------------
-  const span = width + 0.4;
-  const rodGeo = useDisposable(() => {
-    const g = new THREE.CylinderGeometry(ROD_RADIUS, ROD_RADIUS, span, 10, 1);
-    g.rotateZ(Math.PI / 2); // along X
-    return g;
-  }, [span]);
-  const finialGeo = useDisposable(() => new THREE.SphereGeometry(ROD_RADIUS * 1.8, 10, 8), []);
-  const bracketGeo = useDisposable(() => new THREE.BoxGeometry(0.018, 0.018, PANEL_Z), []);
-  const rodMat = useDisposable(() => new THREE.MeshStandardMaterial({ color: '#f3f3f0', roughness: 0.5, metalness: 0.15 }), []);
-
-  const bracketX = width / 2 + 0.1;
-  const finialX = span / 2 + ROD_RADIUS;
+  const track = useDisposable(() => (layer ? null : buildTrack(trackLen, [SHEER_Z])), [layer, trackLen]);
+  const trackMat = useDisposable(makeTrackMaterial, []);
+  const slotMat = useDisposable(makeSlotMaterial, []);
+  const gliderGeo = useDisposable(() => new THREE.BoxGeometry(GLIDER.w, GLIDER.h, GLIDER.d), []);
+  const gliderCount = 2 * (2 * waves + 1);
+  const gliders = useRef<THREE.InstancedMesh>(null);
+  const gliderY = ceil - TRACK_H - GLIDER.h / 2;
+  useLayoutEffect(() => {
+    const im = gliders.current;
+    if (!im) return;
+    const xs = [...carrierXs(leftX, covered, waves), ...carrierXs(rightX, covered, waves)];
+    fillInstances(
+      im,
+      xs.map((x) => [x, gliderY, SHEER_Z] as const),
+    );
+  }, [leftX, rightX, covered, waves, gliderY, gliderGeo, trackMat]);
 
   return (
-    <group>
-      {/* hardware */}
-      <mesh geometry={rodGeo} material={rodMat} position={[0, rodY, PANEL_Z]} />
-      <mesh geometry={finialGeo} material={rodMat} position={[-finialX, rodY, PANEL_Z]} />
-      <mesh geometry={finialGeo} material={rodMat} position={[finialX, rodY, PANEL_Z]} />
-      <mesh geometry={bracketGeo} material={rodMat} position={[-bracketX, rodY - 0.012, PANEL_Z / 2]} />
-      <mesh geometry={bracketGeo} material={rodMat} position={[bracketX, rodY - 0.012, PANEL_Z / 2]} />
-      {/* left panel — its outer (left) edge stays at -outerX */}
-      <mesh geometry={panel} material={voile} position={[-outerX + panelW / 2, panelCY, PANEL_Z]} />
-      {/* right panel — the same geometry mirrored so its outer (right) edge stays at +outerX */}
-      <mesh geometry={panel} material={voile} position={[outerX - panelW / 2, panelCY, PANEL_Z]} scale={[-1, 1, 1]} />
+    <group name="sheers">
+      {track && <mesh geometry={track.body} material={trackMat} position={[0, ceil, 0]} />}
+      {track && <mesh geometry={track.slot} material={slotMat} position={[0, ceil, 0]} />}
+      <instancedMesh key={gliderCount} ref={gliders} args={[gliderGeo, trackMat, gliderCount]} />
+      {/* left panel — its outer edge stays at the left end of the track */}
+      <mesh geometry={panel} material={voile} position={[leftX, panelY, SHEER_Z]} receiveShadow />
+      {/* right panel — same geometry (its leading half-wave bows forward, over the left panel's) */}
+      <mesh geometry={panel} material={voile} position={[rightX, panelY, SHEER_Z]} receiveShadow />
     </group>
   );
 }

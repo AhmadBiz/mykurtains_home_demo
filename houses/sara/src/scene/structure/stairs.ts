@@ -8,16 +8,18 @@ import type { BucketSet } from './bucket';
 import { K } from './keys';
 
 /**
- * Interior stairs: closed-riser oak treads with a nosing, a closed sloped carriage underneath
- * (painted soffit), white closed stringers / skirts on both sides, a wall-mounted oak handrail on
- * the spine-wall side, plus the two interior landings (oak slabs).
+ * Interior stairs: dark-stained wood treads with a 3 cm bullnose, white painted risers, a closed
+ * sloped carriage underneath (painted soffit), white closed stringers / skirts on both sides, a
+ * round oak handrail on nickel brackets along the spine wall, plus the two interior landings
+ * (dark wood tops, white fascia).
  *
  * Flight local frame: origin at the centre of the LOW edge, y = y0, local +X = direction of
  * ascent, local +Z across the flight.
  */
 
 const TREAD_T = 0.04;
-const NOSING = 0.02;
+const NOSING = 0.03;
+const BULL_R = TREAD_T / 2;
 const RISER_T = 0.02;
 const CARRIAGE_T = 0.22;
 const SKIRT_H = 0.3;
@@ -27,6 +29,8 @@ const RAIL_R = 0.022;
 const RAIL_GAP = 0.075;
 const LANDING_T = 0.15;
 const SPINE_Z = WALL_BY_ID.get('g-int-spine')?.a[1] ?? 6 * FT;
+
+const translate = (x: number, y: number, z: number) => new THREE.Matrix4().makeTranslation(x, y, z);
 
 interface Frame {
   matrix: THREE.Matrix4;
@@ -92,15 +96,20 @@ function addFlight(set: BucketSet, f: StairFlight): void {
   const theta = Math.atan2(R, L);
   const slopeLen = Math.hypot(L, R);
 
-  // treads + risers
+  // treads (flat board + bullnose cylinder at the front) and white risers
+  const bull = new THREE.CylinderGeometry(BULL_R, BULL_R, W, 12, 1, true).rotateX(Math.PI / 2);
   for (let i = 0; i < n; i++) {
     const top = (i + 1) * riser;
     const x0 = i * tread;
-    addBox(set, { pz: '', nz: '', rest: K.oak }, { cx: (x0 - NOSING + x0 + tread) / 2, cy: top - TREAD_T / 2, cz: zc, sx: tread + NOSING, sy: TREAD_T, sz: W }, M);
+    const xFront = x0 - NOSING + BULL_R;
+    const xBack = x0 + tread;
+    addBox(set, { py: K.tread, ny: K.tread, rest: '' }, { cx: (xFront + xBack) / 2, cy: top - TREAD_T / 2, cz: zc, sx: xBack - xFront, sy: TREAD_T, sz: W }, M);
+    set.get(K.tread).addGeometry(bull, M.clone().multiply(translate(xFront, top - BULL_R, zc)), 1);
     const rb = i * riser;
     const rt = top - TREAD_T;
-    addBox(set, { nx: K.oak, rest: '' }, { cx: x0 + RISER_T / 2, cy: (rb + rt) / 2, cz: zc, sx: RISER_T, sy: rt - rb, sz: W }, M);
+    addBox(set, { nx: K.trim, rest: '' }, { cx: x0 + RISER_T / 2, cy: (rb + rt) / 2, cz: zc, sx: RISER_T, sy: rt - rb, sz: W }, M);
   }
+  bull.dispose();
 
   // closed carriage under the flight: a sloped slab whose top face follows the riser-foot line
   {
@@ -119,21 +128,27 @@ function addFlight(set: BucketSet, f: StairFlight): void {
     addBox(set, keys, { cx: 0, cy: 0, cz: 0, sx: slopeLen + 0.1, sy: SKIRT_H, sz: SKIRT_T }, M.clone().multiply(local));
   }
 
-  // wall-mounted handrail on the spine side, 0.9 m above the nosing line
+  // wall-mounted round oak handrail on the spine side, 0.9 m above the nosing line, on nickel brackets
   {
     const runX = L - tread;
     const runY = R - riser;
     const railLen = Math.hypot(runX, runY) + 0.3;
     const zr = zc + spineSide * (W / 2 - RAIL_GAP);
-    const cyl = new THREE.CylinderGeometry(RAIL_R, RAIL_R, railLen, 10);
+    const cyl = new THREE.CylinderGeometry(RAIL_R, RAIL_R, railLen, 12);
     const local = new THREE.Matrix4().makeRotationZ(theta - Math.PI / 2).setPosition(runX / 2, (riser + R) / 2 + RAIL_H, zr);
-    set.get(K.oak).addGeometry(cyl, M.clone().multiply(local));
+    set.get(K.oak).addGeometry(cyl, M.clone().multiply(local), 1);
     cyl.dispose();
+    const stem = new THREE.CylinderGeometry(0.008, 0.008, RAIL_GAP - 0.01, 8).rotateX(Math.PI / 2);
+    const plate = new THREE.CylinderGeometry(0.03, 0.03, 0.006, 12).rotateX(Math.PI / 2);
     for (const t of [0.2, 0.5, 0.8]) {
       const x = t * runX;
-      const y = riser + RAIL_H + (x * R) / L - 0.045;
-      addBox(set, K.handle, { cx: x, cy: y, cz: zc + spineSide * (W / 2 - RAIL_GAP / 2), sx: 0.03, sy: 0.06, sz: RAIL_GAP }, M);
+      const y = riser + RAIL_H + (x * R) / L - 0.015; // stem meets the underside of the rail
+      const zWall = zc + spineSide * (W / 2);
+      set.get(K.handle).addGeometry(stem, M.clone().multiply(translate(x, y, zWall - (spineSide * (RAIL_GAP - 0.01)) / 2)));
+      set.get(K.handle).addGeometry(plate, M.clone().multiply(translate(x, y, zWall - spineSide * 0.003)));
     }
+    stem.dispose();
+    plate.dispose();
   }
 }
 
@@ -150,6 +165,6 @@ export function addStairs(sets: Record<LevelId, BucketSet>): void {
     const cz = (z1 + z2) / 2;
     if (!pointInLevelOutline(LEVEL_BY_ID.ground, cx, cz)) continue; // exterior landings belong to Exterior
     const level = levelForY(p.y + 0.01);
-    addBox(sets[level], { py: K.hardwood, ny: K.soffit, rest: K.oak }, { cx, cy: p.y - LANDING_T / 2, cz, sx: x2 - x1, sy: LANDING_T, sz: z2 - z1 }, IDENTITY);
+    addBox(sets[level], { py: K.tread, ny: K.soffit, rest: K.trim }, { cx, cy: p.y - LANDING_T / 2, cz, sx: x2 - x1, sy: LANDING_T, sz: z2 - z1 }, IDENTITY);
   }
 }

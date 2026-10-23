@@ -1,15 +1,17 @@
 import type { LevelStructure } from './build';
 import { K } from './keys';
-import { materialFor, renderFlags } from './materials';
+import { renderFlags } from './materials';
+import type { StructureMaterials } from './materials';
 
 interface Props {
   data: LevelStructure;
+  materials: StructureMaterials;
   visible: boolean;
   ceilingVisible: boolean;
 }
 
 /** Renders one storey: merged parts (one mesh per material), the slab and the ceiling. */
-export function StructureLevel({ data, visible, ceilingVisible }: Props) {
+export function StructureLevel({ data, materials, visible, ceilingVisible }: Props) {
   return (
     <group visible={visible}>
       {data.parts.map((p) => {
@@ -18,15 +20,15 @@ export function StructureLevel({ data, visible, ceilingVisible }: Props) {
           <mesh
             key={p.key}
             geometry={p.geometry}
-            material={materialFor(p.key)}
+            material={materials.get(p.key)}
             castShadow={f.castShadow}
             receiveShadow={f.receiveShadow}
             renderOrder={f.transparent ? 10 : 0}
           />
         );
       })}
-      <mesh geometry={data.slab} material={materialFor(K.slab)} castShadow receiveShadow />
-      <mesh geometry={data.ceiling} material={materialFor(K.ceiling)} visible={ceilingVisible} receiveShadow />
+      <mesh geometry={data.slab} material={materials.get(K.slab)} castShadow receiveShadow />
+      <mesh geometry={data.ceiling} material={materials.get(K.ceiling)} visible={ceilingVisible} receiveShadow />
     </group>
   );
 }

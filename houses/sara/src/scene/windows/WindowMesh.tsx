@@ -2,28 +2,19 @@ import { useCallback, useEffect, useMemo } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import { useStore } from '../../store/useStore';
 import { DEFAULT_COVERINGS, colorOption, defaultStateFor } from '../../data/coverings';
-import type { WindowInstance } from '../../data/geometry';
+import { LEVEL_BY_ID, type WindowInstance } from '../../data/geometry';
 import { Covering } from '../coverings';
 import type { WindowMaterials } from './materials';
-import {
-  doorAluminium,
-  doorGlass,
-  doorHandle,
-  doorTrim,
-  highlightFrame,
-  highlightZ,
-  hitBox,
-  windowGlass,
-  windowLedge,
-  windowWoodwork,
-} from './geometry';
+import { doorAluminium, doorGlazing, doorHandle, doorTrim, highlightFrame, highlightZ, hitBox, windowGlazing, windowSill, windowWoodwork } from './geometry';
 import type { Dims } from './geometry';
 import { Highlight } from './Highlight';
 
 /**
- * Transparent sort: the glass draws first (-1); the coverings group gets renderOrder 1, which
+ * Transparent sort: the glazing draws first (-1); the coverings group gets renderOrder 1, which
  * three.js uses as the *groupOrder* of every mesh inside it, so coverings — whatever renderOrder
  * their own meshes use — always draw after the glass and after other transparent scene objects.
+ * (On 'high' quality the clear glass is a transmission material, which three draws in its own
+ * pass between the opaque and the transparent objects; the order then only matters on 'low'.)
  */
 const GLASS_RENDER_ORDER = -1;
 const COVERING_GROUP_ORDER = 1;
@@ -35,30 +26,33 @@ interface BodyProps {
   mats: WindowMaterials;
 }
 
-/** Frame + stool/apron/casing (one mesh), exterior stone ledge, glass pane. */
+/**
+ * Painted woodwork (one mesh), stone sill, the glazing (one mesh: both faces of the double glazing).
+ * Glass never casts nor receives shadows (the sun must get in).
+ */
 function WindowBody({ dims, mats, frosted }: BodyProps & { frosted: boolean }) {
   const wood = useMemo(() => windowWoodwork(dims), [dims]);
-  const ledge = useMemo(() => windowLedge(dims), [dims]);
-  const glass = useMemo(() => windowGlass(dims), [dims]);
+  const sill = useMemo(() => windowSill(dims), [dims]);
+  const glass = useMemo(() => windowGlazing(dims), [dims]);
   return (
     <>
-      <mesh geometry={wood} material={mats.wood} castShadow receiveShadow />
-      <mesh geometry={ledge} material={mats.stone} castShadow receiveShadow />
+      <mesh geometry={wood} material={mats.paint} castShadow receiveShadow />
+      <mesh geometry={sill} material={mats.stone} castShadow receiveShadow />
       <mesh geometry={glass} material={frosted ? mats.frosted : mats.glass} renderOrder={GLASS_RENDER_ORDER} />
     </>
   );
 }
 
-/** Patio door: aluminium frame + track + two sliding panels, interior casing, handles, two panes. */
+/** Patio door: aluminium frame + tracks + two sliding panels, white casing, stainless pulls, one glazing mesh for both panels. */
 function DoorBody({ dims, mats }: BodyProps) {
   const alu = useMemo(() => doorAluminium(dims), [dims]);
   const trim = useMemo(() => doorTrim(dims), [dims]);
   const handle = useMemo(() => doorHandle(dims), [dims]);
-  const glass = useMemo(() => doorGlass(dims), [dims]);
+  const glass = useMemo(() => doorGlazing(dims), [dims]);
   return (
     <>
       <mesh geometry={alu} material={mats.alu} castShadow receiveShadow />
-      <mesh geometry={trim} material={mats.wood} castShadow receiveShadow />
+      <mesh geometry={trim} material={mats.paint} castShadow receiveShadow />
       <mesh geometry={handle} material={mats.metal} />
       <mesh geometry={glass} material={mats.glass} renderOrder={GLASS_RENDER_ORDER} />
     </>
@@ -137,6 +131,7 @@ export function WindowMesh({ win, mats }: Props) {
           sill={opening.sill}
           reveal={wallThickness / 2}
           isDoor={isDoor}
+          ceiling={LEVEL_BY_ID[win.level].ceilingHeight}
           state={state}
           color={color}
         />
