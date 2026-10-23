@@ -23,8 +23,26 @@ export interface CoveringProps {
   isDoor: boolean;
   state: WindowCoveringState;
   color: ColorOption;
-  /** Height of the room's ceiling above the floor (m) — needed by the ceiling-mounted tracks. */
-  ceiling?: number;
+  /**
+   * Height of the room's ceiling above the floor (m) — LEVEL_BY_ID[level].ceilingHeight. The
+   * ceiling-mounted tracks of curtains / sheers sit flush under it, i.e. at local
+   * y = ceiling − sill − height / 2.
+   */
+  ceiling: number;
+  /**
+   * Free run along the wall from the left (−X) and right (+X) edge of the opening to the nearest
+   * obstruction beside it at track height — a perpendicular wall's face less its crown moulding,
+   * or a fixture — with a 1 cm margin (m; may be negative when a wall or its crown overlaps the
+   * opening's edge). Ceiling tracks stop there instead of running a full stack-back past the edge.
+   * Omitted = unobstructed.
+   */
+  sideRoom?: [number, number];
+  /**
+   * Lowest height above the floor the fabric's hem may hang at (m): set where a counter, a tub or
+   * a stair stands under the window, so floor-length fabric stops just above it. Omitted = floor
+   * length (hem 1 cm above the floor).
+   */
+  hemAbove?: number;
 }
 
 /** Local y of the floor relative to the opening centre. */

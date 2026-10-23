@@ -15,17 +15,17 @@
  *
  * Local frame (see ./types.ts): origin = centre of the opening on the interior wall face,
  * +X along the wall, +Y up, +Z into the room. The inner channel is at z = SHEER_Z, so the wave
- * troughs (z ≥ 0.07) clear the 6.7 cm window stool. Pure & prop-driven: no store access; the
+ * troughs (z ≥ 0.0698 with the ±4 % breathing) clear the 6.7 cm window stool and its horns. The
+ * track stops short of a wall or fixture beside the opening (`sideRoom`) and the hem stops above a
+ * counter / tub / stair under the window (`hemAbove`). Pure & prop-driven: no store access; the
  * panel geometry is rebuilt only when the quantised `open` changes.
  */
 import * as THREE from 'three';
 import { useLayoutEffect, useRef } from 'react';
 import { useIndoorEnvironment } from '../Lighting';
-import { floorY } from './types';
 import {
   GLIDER,
   TRACK_H,
-  WAVE_PERIOD,
   buildTrack,
   buildWavePanel,
   carrierXs,
@@ -33,6 +33,7 @@ import {
   clamp,
   fillInstances,
   finite,
+  hemLocal,
   lerp,
   makeTrackMaterial,
   makeSlotMaterial,
@@ -40,16 +41,17 @@ import {
   quantizeOpen,
   safeSize,
   stackBackFor,
+  trackLayout,
   useDisposable,
   useFabricMaps,
 } from './fabric';
 import type { FabricProps } from './fabric';
 
 /** Depth of the sheer channel in front of the wall face (m). */
-export const SHEER_Z = 0.1;
+export const SHEER_Z = 0.102;
 /** Wave depth (±, m): 6 cm peak-to-peak drawn, a little deeper in the stack (troughs still clear the stool horns). */
 const AMP_CLOSED = 0.03;
-const AMP_OPEN = 0.033;
+const AMP_OPEN = 0.031;
 /** The two panels overlap this much at the centre when drawn. */
 const OVERLAP = 0.02;
 /** Opacity range of the voile (1 − translucency, so the catalogue's 0.6 → 0.4). */
@@ -67,25 +69,34 @@ export function Sheers(props: SheersProps) {
   const height = safeSize(props.height);
   const open = quantizeOpen(state.open, 24);
 
-  // ---- vertical extent: carriers under the channel → hem 1 cm above the floor ------------------
+  // ---- vertical extent: carriers under the channel → hem 1 cm above the floor (or what stands on it)
   const ceil = ceilingLocal(props);
-  const hem = finite(floorY(props), -height / 2) + 0.01;
+  const hem = finite(hemLocal(props), -height / 2);
   const fabricTop = ceil - TRACK_H - GLIDER.drop;
   const panelH = Math.max(0.05, fabricTop - hem);
   const panelY = hem + panelH / 2;
 
   // ---- horizontal extent: outer edges fixed at the track ends, inner edges travel --------------
   const stackBack = stackBackFor(width);
-  const trackLen = width + 2 * stackBack;
-  const closedCovered = trackLen / 2 + OVERLAP / 2;
-  const waves = Math.max(2, Math.round(closedCovered / WAVE_PERIOD));
-  const covered = lerp(closedCovered, stackBack, open);
+  const { endL, endR, trackLen, trackCx, closedL, closedR, wavesL, wavesR } = trackLayout(props, width, stackBack, OVERLAP);
+  const coveredL = lerp(closedL, stackBack, open);
+  const coveredR = lerp(closedR, stackBack, open);
   const amplitude = lerp(AMP_CLOSED, AMP_OPEN, open);
-  const leftX = -trackLen / 2 + covered / 2;
-  const rightX = trackLen / 2 - covered / 2;
+  const leftX = -endL + coveredL / 2;
+  const rightX = endR - coveredR / 2;
+  const sameShape = Math.abs(coveredL - coveredR) < 1e-6 && wavesL === wavesR;
 
   // ---- geometry & materials -------------------------------------------------------------------
-  const panel = useDisposable(() => buildWavePanel({ covered, height: panelH, waves, amplitude, segY: 10 }), [covered, panelH, waves, amplitude]);
+  const panelL = useDisposable(
+    () => buildWavePanel({ covered: coveredL, height: panelH, waves: wavesL, amplitude, segY: 10 }),
+    [coveredL, panelH, wavesL, amplitude],
+  );
+  // the right panel has its own shape only where a wall beside the opening shortens its track end
+  const ownR = useDisposable(
+    () => (sameShape ? null : buildWavePanel({ covered: coveredR, height: panelH, waves: wavesR, amplitude, segY: 10 })),
+    [sameShape, coveredR, panelH, wavesR, amplitude],
+  );
+  const panelR = ownR ?? panelL;
   const maps = useFabricMaps('linen', 0.6);
   const env = useIndoorEnvironment();
   const opacity = clamp(1 - finite(color.translucency ?? 0.6, 0.6), OPACITY_MIN, OPACITY_MAX);
@@ -95,28 +106,28 @@ export function Sheers(props: SheersProps) {
   const trackMat = useDisposable(makeTrackMaterial, []);
   const slotMat = useDisposable(makeSlotMaterial, []);
   const gliderGeo = useDisposable(() => new THREE.BoxGeometry(GLIDER.w, GLIDER.h, GLIDER.d), []);
-  const gliderCount = 2 * (2 * waves + 1);
+  const gliderCount = 2 * wavesL + 1 + 2 * wavesR + 1;
   const gliders = useRef<THREE.InstancedMesh>(null);
   const gliderY = ceil - TRACK_H - GLIDER.h / 2;
   useLayoutEffect(() => {
     const im = gliders.current;
     if (!im) return;
-    const xs = [...carrierXs(leftX, covered, waves), ...carrierXs(rightX, covered, waves)];
+    const xs = [...carrierXs(leftX, coveredL, wavesL), ...carrierXs(rightX, coveredR, wavesR)];
     fillInstances(
       im,
       xs.map((x) => [x, gliderY, SHEER_Z] as const),
     );
-  }, [leftX, rightX, covered, waves, gliderY, gliderGeo, trackMat]);
+  }, [leftX, rightX, coveredL, coveredR, wavesL, wavesR, gliderY, gliderGeo, trackMat]);
 
   return (
     <group name="sheers">
-      {track && <mesh geometry={track.body} material={trackMat} position={[0, ceil, 0]} />}
-      {track && <mesh geometry={track.slot} material={slotMat} position={[0, ceil, 0]} />}
+      {track && <mesh geometry={track.body} material={trackMat} position={[trackCx, ceil, 0]} />}
+      {track && <mesh geometry={track.slot} material={slotMat} position={[trackCx, ceil, 0]} />}
       <instancedMesh key={gliderCount} ref={gliders} args={[gliderGeo, trackMat, gliderCount]} />
       {/* left panel — its outer edge stays at the left end of the track */}
-      <mesh geometry={panel} material={voile} position={[leftX, panelY, SHEER_Z]} receiveShadow />
-      {/* right panel — same geometry (its leading half-wave bows forward, over the left panel's) */}
-      <mesh geometry={panel} material={voile} position={[rightX, panelY, SHEER_Z]} receiveShadow />
+      <mesh geometry={panelL} material={voile} position={[leftX, panelY, SHEER_Z]} receiveShadow />
+      {/* right panel — same wave orientation (its leading half-wave bows forward, over the left panel's) */}
+      <mesh geometry={panelR} material={voile} position={[rightX, panelY, SHEER_Z]} receiveShadow />
     </group>
   );
 }

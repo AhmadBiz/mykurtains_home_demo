@@ -8,8 +8,11 @@
  *                                        (no HUD) from the exterior-front viewpoint in 'high' quality,
  *                                        used as the thumbnail on the multi-house landing page.
  *   QUALITY=low npm run screenshot     — run the tour in the other quality tier ('high' is the default).
+ *   ONLY=w-salon-n,w-ch1-e npm run screenshot
+ *                                      — only the listed shots (comma-separated base names); every other
+ *                                        view is skipped (the covering changes are still applied in order).
  *
- * Under SwiftShader a frame of the realism build takes several seconds (4096 shadow map, 35 lights,
+ * Under SwiftShader a frame of the realism build takes several seconds (4096 shadow map, 37 lights,
  * post-processing), hence the long timeouts and the initial settle before the first shot.
  *
  * Exit code 1 when a page error or console error occurred (software-WebGL warnings are ignored).
@@ -30,6 +33,9 @@ const URL = `http://localhost:${PORT}`;
 const PREVIEW_MODE = process.argv.includes('--preview');
 const VIEWPORT = PREVIEW_MODE ? { width: 1200, height: 750 } : { width: 1280, height: 800 };
 const QUALITY = PREVIEW_MODE ? 'high' : process.env.QUALITY === 'low' ? 'low' : 'high';
+/** Optional shot filter (ONLY=name,name…); unset = the whole tour. */
+const ONLY = process.env.ONLY ? new Set(process.env.ONLY.split(',').map((s) => s.trim()).filter(Boolean)) : null;
+const want = (...names) => !ONLY || names.some((n) => ONLY.has(n));
 /** Per-operation timeout: a software-GL frame can take > 5 s and a screenshot waits for one. */
 const OP_TIMEOUT = 240000;
 /** Exterior-front vantage (metres / radians) shared by the tour and the preview. */
@@ -182,10 +188,9 @@ async function main() {
     };
     const shot = async (name, assessment = '') => {
       const file = join(OUT, `${name}.png`);
-      const t0 = Date.now();
-      await page.screenshot({ path: file, timeout: OP_TIMEOUT });
-      screenshots.push(`screenshots/${name}.png`);
-      // per-frame draw calls / triangles, averaged over the settle frames (window.__house.gl is set by Scene.tsx)
+      // per-frame draw calls / triangles, averaged over the settle frames (window.__house.gl is set by
+      // Scene.tsx). Read BEFORE the screenshot: page.screenshot waits for fresh frames, and with
+      // autoReset off those would be accumulated too and inflate the per-frame estimate several-fold.
       const info = await page.evaluate((n) => {
         const info = window.__house?.gl?.info;
         if (!info) return 'n/a';
@@ -194,6 +199,9 @@ async function main() {
         info.autoReset = true;
         return s;
       }, SETTLE_FRAMES);
+      const t0 = Date.now();
+      await page.screenshot({ path: file, timeout: OP_TIMEOUT });
+      screenshots.push(`screenshots/${name}.png`);
       console.log(`  shot ${name}.png (${((Date.now() - t0) / 1000).toFixed(1)} s, ${info})${assessment ? ' — ' + assessment : ''}`);
     };
     const api = (fn, ...args) => page.evaluate(([f, a]) => new Function('a', `return (${f})(window.__house, ...a)`)(a), [fn, args]);
@@ -242,10 +250,11 @@ async function main() {
       return errors.length > 0 ? 1 : 0;
     }
 
-    await shot('01-start');
+    if (want('01-start')) await shot('01-start');
 
     // ---- window tour (default coverings)
     for (const id of TOUR) {
+      if (!want(id)) continue;
       await api('(h, id) => h.goToWindow(id)', id);
       await settle(1200);
       await shot(id);
@@ -254,40 +263,47 @@ async function main() {
     // ---- change some coverings
     for (const [id, patch] of Object.entries(CHANGES)) {
       await api('(h, id, patch) => h.setCovering(id, patch)', id, patch);
+      if (!want(`${id}-changed`)) continue;
       await api('(h, id) => h.goToWindow(id)', id);
       await settle(1200);
       await shot(`${id}-changed`);
     }
 
     // ---- panels
-    await api('(h) => h.setPanel("windows")');
-    await settle(500);
-    await shot('panel-windows');
-    await api('(h) => h.state().selectWindow("w-ch1-e")');
-    await settle(500);
-    await shot('panel-covering');
-    await api('(h) => h.setPanel("none")');
+    if (want('panel-windows', 'panel-covering')) {
+      await api('(h) => h.setPanel("windows")');
+      await settle(500);
+      if (want('panel-windows')) await shot('panel-windows');
+      await api('(h) => h.state().selectWindow("w-ch1-e")');
+      await settle(500);
+      if (want('panel-covering')) await shot('panel-covering');
+      await api('(h) => h.setPanel("none")');
+    }
 
     // ---- orbit / dollhouse
-    await api('(h) => { h.setMode("orbit"); h.state().setOrbitLevel("ground"); }');
-    await settle(1500);
-    await shot('orbit-ground');
-    await api('(h) => h.state().setOrbitLevel("upper")');
-    await settle(1200);
-    await shot('orbit-upper');
-    await api('(h) => h.state().setOrbitLevel("basement")');
-    await settle(1200);
-    await shot('orbit-basement');
+    if (want('orbit-ground', 'orbit-upper', 'orbit-basement')) {
+      await api('(h) => { h.setMode("orbit"); h.state().setOrbitLevel("ground"); }');
+      await settle(1500);
+      if (want('orbit-ground')) await shot('orbit-ground');
+      await api('(h) => h.state().setOrbitLevel("upper")');
+      await settle(1200);
+      if (want('orbit-upper')) await shot('orbit-upper');
+      await api('(h) => h.state().setOrbitLevel("basement")');
+      await settle(1200);
+      if (want('orbit-basement')) await shot('orbit-basement');
+    }
 
     // ---- exterior views
-    await api('(h) => h.setMode("walk")');
-    await settle(300);
-    await api('(h, v) => h.teleport(...v)', EXTERIOR_FRONT);
-    await settle(1500);
-    await shot('exterior-front');
-    await api('(h) => h.teleport(22, -1.07 + 1.68, 17, Math.PI / 2 - 0.3)');
-    await settle(1500);
-    await shot('exterior-rear');
+    if (want('exterior-front', 'exterior-rear')) {
+      await api('(h) => h.setMode("walk")');
+      await settle(300);
+      await api('(h, v) => h.teleport(...v)', EXTERIOR_FRONT);
+      await settle(1500);
+      if (want('exterior-front')) await shot('exterior-front');
+      await api('(h) => h.teleport(22, -1.07 + 1.68, 17, Math.PI / 2 - 0.3)');
+      await settle(1500);
+      if (want('exterior-rear')) await shot('exterior-rear');
+    }
   } finally {
     if (browser) await browser.close().catch(() => {});
     killServer();

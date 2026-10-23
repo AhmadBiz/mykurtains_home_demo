@@ -54,17 +54,10 @@ export const quantizeOpen = (open: number, steps = 20) => Math.round(clamp01(fin
 // ---------------------------------------------------------------------------------------------
 // Props / placement
 // ---------------------------------------------------------------------------------------------
-/**
- * Props of the fabric coverings: the shared CoveringProps plus the room's ceiling height, which
- * the ceiling-mounted tracks need. `ceiling` is optional until the window component passes
- * LEVEL_BY_ID[level].ceilingHeight (see the report's requests); until then DEFAULT_CEILING is used.
- */
-export interface FabricProps extends CoveringProps {
-  /** Height of the room's ceiling above the floor (m). */
-  ceiling?: number;
-}
+/** Props of the fabric coverings (the shared CoveringProps, `ceiling` included). */
+export type FabricProps = CoveringProps;
 
-/** 9 ft — the ceiling height of the two main storeys (the basement is 8 ft). */
+/** 9 ft — the ceiling height of the two main storeys (the basement is 8 ft); fallback for a non-finite `ceiling`. */
 export const DEFAULT_CEILING = 2.743;
 
 /**
@@ -73,7 +66,7 @@ export const DEFAULT_CEILING = 2.743;
  */
 export function ceilingLocal(p: FabricProps): number {
   const height = safeSize(p.height);
-  const c = finite(p.ceiling ?? DEFAULT_CEILING, DEFAULT_CEILING) - finite(p.sill, 0) - height / 2;
+  const c = finite(p.ceiling, DEFAULT_CEILING) - finite(p.sill, 0) - height / 2;
   return c < height / 2 + 0.05 ? height / 2 + 0.25 : c;
 }
 
@@ -208,6 +201,41 @@ export interface DrapeMaterialOptions {
    * buildWavePanel). Only for geometries that carry one — a geometry without it renders black.
    */
   vertexColors?: boolean;
+  /**
+   * The geometry is one continuous opaque sheet whose overall facing is the mesh's local +Z (a
+   * ripple-fold panel): direct light arriving from the other side of the sheet is cut (see
+   * applyOpaqueSheetMask).
+   */
+  opaqueSheet?: boolean;
+}
+
+/**
+ * A ripple-fold panel is one continuous sheet hanging in front of the window: direct light coming
+ * from behind it (the sun through the glass) cannot reach its room side. Per fragment, though, the
+ * walls of the folds face sideways (much more so in the stack, where the waves are tight), so their
+ * N·L towards a low sun behind the panel is positive and only the shadow map keeps them dark — and
+ * on those thin, steep walls the 1 cm shadow texels plus normal bias leak, drawing dashed bright
+ * lines down every fold. This mask multiplies each direct light by the side of the sheet it lies
+ * on, judged against the panel's MACRO normal (local +Z, flipped for back faces) instead of the
+ * fold's normal: light from the window side lights only the window side, light from the room side
+ * (room lamps, sun through another window) is unchanged. Indirect light is untouched.
+ */
+function applyOpaqueSheetMask(m: THREE.MeshPhysicalMaterial): void {
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vSheetNormal;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSheetNormal = normalize( normalMatrix * vec3( 0.0, 0.0, 1.0 ) );');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vSheetNormal;')
+      .replace(
+        '#include <lights_fragment_begin>',
+        THREE.ShaderChunk.lights_fragment_begin.replace(
+          /RE_Direct\( directLight,/g,
+          'directLight.color *= smoothstep( 0.0, 0.15, dot( directLight.direction, normalize( vSheetNormal ) * faceDirection ) );\n\t\tRE_Direct( directLight,',
+        ),
+      );
+  };
+  m.customProgramCacheKey = () => 'fabric-opaque-sheet';
 }
 
 /**
@@ -217,7 +245,7 @@ export interface DrapeMaterialOptions {
  *    normal contributes nothing to the diffuse and a dim sheen reads as one thin bright line on
  *    each crest, so the treatment slides (fully at luminance ≤ 0.1) to: normal strength 1.6, so
  *    the weave is read in the specular; sheenColor lightened by 0.45; roughness 0.9; sheenRoughness 0.7.
- *  - velvet: roughness 0.85, sheen 0.8 at sheenRoughness 0.75 in a lighter, slightly desaturated
+ *  - velvet: roughness 0.85, sheen 0.8 at sheenRoughness 0.85 in a lighter, slightly desaturated
  *    tint of the colour — one broad, soft sheen that brightens the crests of the ripple folds over
  *    5–10 cm and lets the troughs stay dark, the crush coming from the indoor environment's soft
  *    boxes (envMapIntensity 0.6) rather than a tight direct lobe, which drew a hard specular line
@@ -228,7 +256,7 @@ export function makeDrapeMaterial(o: DrapeMaterialOptions): THREE.MeshPhysicalMa
   // 0 on mid / light linen → 1 on the darkest colours; the velvet keeps its own treatment
   const dark = velvet ? 0 : 1 - smoothstep(0.1, 0.2, luminance(o.hex));
   const normal = velvet ? o.maps.normalScale.x : lerp(o.maps.normalScale.x, 1.6, dark);
-  return new THREE.MeshPhysicalMaterial({
+  const m = new THREE.MeshPhysicalMaterial({
     color: o.map ? '#ffffff' : o.hex,
     map: o.map ?? null,
     vertexColors: o.vertexColors ?? false,
@@ -239,11 +267,13 @@ export function makeDrapeMaterial(o: DrapeMaterialOptions): THREE.MeshPhysicalMa
     metalness: 0,
     sheen: velvet ? 0.8 : 0.6,
     sheenColor: velvet ? sheenTint(o.hex, 0.25, 0.14) : lighten(o.hex, lerp(0.3, 0.45, dark)),
-    sheenRoughness: velvet ? 0.75 : lerp(0.5, 0.7, dark),
+    sheenRoughness: velvet ? 0.85 : lerp(0.5, 0.7, dark),
     side: o.side ?? THREE.DoubleSide,
     envMap: o.envMap ?? null,
     envMapIntensity: 0.6,
   });
+  if (o.opaqueSheet) applyOpaqueSheetMask(m);
+  return m;
 }
 
 /**
@@ -315,9 +345,63 @@ export const WAVE_PERIOD = 0.12;
 export const TRACK_W = 0.024;
 export const TRACK_H = 0.016;
 /** Carrier (glider) under the channel: a 1 cm snap button; the fabric's top edge hangs `drop` below the channel. */
-export const GLIDER = { w: 0.01, h: 0.008, d: 0.008, drop: 0.012 };
+export const GLIDER = { w: 0.01, h: 0.008, d: 0.008, drop: 0.008 }; // drop = h: the fabric top meets the carriers
 /** Width of the stack each panel compresses into when fully drawn back (≈ 18 % of the window, ≥ 30 cm). */
 export const stackBackFor = (width: number) => Math.max(0.3, 0.18 * width);
+/** How far an end cap reaches past the end of the track body (see buildTrack). */
+export const END_CAP_OUT = 0.01;
+
+/**
+ * Local y of the hem: 1 cm above the floor (floor length, the standard), or 1 cm above whatever
+ * stands under the window when the window passes `hemAbove` (counter, tub, stair landing).
+ */
+export function hemLocal(p: FabricProps): number {
+  const floor = -(finite(p.sill, 0) + safeSize(p.height) / 2);
+  return floor + Math.max(0.01, finite(p.hemAbove ?? 0, 0));
+}
+
+export interface TrackLayout {
+  /** Track body from x = −endL to x = +endR (end caps reach END_CAP_OUT further). */
+  endL: number;
+  endR: number;
+  trackLen: number;
+  trackCx: number;
+  /** Covered length of the left / right panel when drawn closed (they overlap by `overlap` at x = 0). */
+  closedL: number;
+  closedR: number;
+  /** Constant wave count of each panel. */
+  wavesL: number;
+  wavesR: number;
+}
+
+/**
+ * The track runs `stackBack` past each edge of the opening, unless `sideRoom` says a wall (or a
+ * fixture) is closer on that side: then it stops short of it (end cap included). Each panel's
+ * stack keeps its `stackBack` width wherever the track ends, so on a blocked side the stack
+ * covers part of the opening.
+ */
+export function trackLayout(p: FabricProps, width: number, stackBack: number, overlap: number): TrackLayout {
+  const room = (i: 0 | 1) => {
+    const r = p.sideRoom?.[i];
+    return r === undefined || !Number.isFinite(r) ? stackBack : Math.min(stackBack, r - END_CAP_OUT);
+  };
+  // never shorter than the stack itself on either side of the centre
+  const end = (i: 0 | 1) => Math.max(stackBack - overlap / 2, width / 2 + room(i));
+  const endL = end(0);
+  const endR = end(1);
+  const closedL = Math.max(stackBack, endL + overlap / 2);
+  const closedR = Math.max(stackBack, endR + overlap / 2);
+  return {
+    endL,
+    endR,
+    trackLen: endL + endR,
+    trackCx: (endR - endL) / 2,
+    closedL,
+    closedR,
+    wavesL: Math.max(2, Math.round(closedL / WAVE_PERIOD)),
+    wavesR: Math.max(2, Math.round(closedR / WAVE_PERIOD)),
+  };
+}
 
 export interface WaveParams {
   /** Covered (visible) length of the panel along the track (m). */
