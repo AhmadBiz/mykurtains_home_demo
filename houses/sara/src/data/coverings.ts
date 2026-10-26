@@ -177,7 +177,7 @@ export const COVERING_TYPES: CoveringTypeDef[] = [
     colors: VERTICAL_COLORS, defaultColor: 'white', defaultOpen: 0, defaultTilt: 0.4,
   },
   {
-    id: 'shutters', name: 'Plantation shutters', nameFr: 'Persiennes (volets intérieurs)', glyph: '▥',
+    id: 'shutters', name: 'Plantation shutters', nameFr: 'Volets intérieurs', glyph: '▥',
     description: 'Hinged louvred panels. Tilt the louvres or swing the panels open.', descriptionFr: 'Panneaux à lames articulés. Inclinez les lames ou ouvrez les panneaux.',
     hasOpen: true, openLabel: 'Panels swung open', openLabelFr: 'Panneaux ouverts', hasTilt: true, hasSheerLayer: false,
     colors: SHUTTER_COLORS, defaultColor: 'white', defaultOpen: 0, defaultTilt: 0.2,

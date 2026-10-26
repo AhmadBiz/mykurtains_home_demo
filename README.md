@@ -1,15 +1,15 @@
 # MyKurtains · Home demos
 
-Un seul site, plusieurs maisons : la page d'accueil liste les maisons, et chaque maison s'ouvre en visite 3D
-interactive où l'on choisit l'habillage de chaque fenêtre (rideaux, voilages, stores, persiennes).
-*One site, many houses: a landing page lists the houses; each opens as an interactive 3D walkthrough where every
+Un seul site, plusieurs maisons : la page d'accueil liste les maisons, et chaque maison s'ouvre sur une maquette
+légère où l'on choisit l'habillage de chaque fenêtre (rideaux et voilages à plis ondulés, stores, volets intérieurs).
+*One site, many houses: a landing page lists the houses; each opens on a lightweight glass model where every
 window gets its own curtains, blinds or shutters.*
 
 ## Organisation / Layout
 
 ```
 houses.json                 ← liste des maisons affichées sur la page d'accueil (nom, client, description, vignette)
-houses/<id>/                ← une maison = un dossier = une application Vite + React + three.js autonome
+houses/<id>/                ← une maison = un dossier = une application Vite + React autonome (CSS 3D + SVG, sans WebGL)
 site/                       ← gabarit de la page d'accueil (index.html, styles.css)
 scripts/build-all.mjs       ← construit toutes les maisons + la page d'accueil dans dist/
 scripts/serve.mjs           ← aperçu local de dist/
@@ -24,7 +24,7 @@ dist/houses/<id>/           ← chaque maison, servie sous /houses/<id>/
 
 | Dossier | Maison | Détails |
 |---|---|---|
-| [`houses/sara`](houses/sara) | Maison Sara — 6274 Blvd. des Rossignols, Laval, QC H7L 5V6 — maison à deux étages avec garage et sous-sol aménagé | 4 chambres à l'étage + 2 au sous-sol, 27 fenêtres habillables |
+| [`houses/sara`](houses/sara) | Maison Sara — 6274, boul. des Rossignols, Laval — maison à deux étages avec garage et sous-sol aménagé | 4 chambres à l'étage + 2 au sous-sol, 27 fenêtres habillables |
 
 ## Déploiement sur Vercel (un seul projet) / Deploy to Vercel (single project)
 
@@ -37,10 +37,13 @@ Chaque push sur `main` reconstruit toutes les maisons (quelques secondes par mai
 ## Ajouter une maison / Add a house
 
 1. Copiez `houses/sara` vers `houses/<id-de-la-nouvelle-maison>`.
-2. Transcrivez les plans dans `src/data/house.ts` (murs, ouvertures, escaliers), ajustez `src/data/coverings.ts`
-   (habillages par défaut) et `src/scene/Furniture.tsx` (meubles). Vérifiez avec `npx tsx scripts/validate-house.ts`.
-3. Ajoutez une entrée dans `houses.json` (id = nom du dossier, nom, client, description, statistiques, vignette).
-4. Facultatif : une image `public/preview.png` dans le dossier de la maison sert de vignette sur la page d'accueil.
+2. Transcrivez les plans dans `src/data/house.ts` (niveaux, murs, ouvertures, `hemAbove` pour les fenêtres au-dessus
+   d'un comptoir ou d'un bain, et `HOUSE_META` : nom, client, adresse) et ajustez les habillages par défaut dans
+   `src/data/coverings.ts`. La maquette, les dessins et l'interface se construisent seuls à partir de ces données.
+3. Ajoutez une entrée dans `houses.json` (id = nom du dossier, nom, client, adresse, description, statistiques).
+4. `npm run screenshot -- --preview` dans le dossier de la maison crée la vignette `public/preview.jpg`.
+
+L'ancienne visite photoréaliste (WebGL) est archivée dans `legacy/sara-walkthrough/` (non déployée).
 
 ## Développement / Development
 

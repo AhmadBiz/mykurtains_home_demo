@@ -318,6 +318,12 @@ const openingsFt: Opening[] = [
   door('d-rangement', 'b-int-10', 2.25, 2.5),
 ];
 
+// Fixed obstacles under some windows (feet above the level's floor): curtains stop just above them.
+// Kitchen: counter + arched faucet (3.87 ft = 1.18 m); ensuite: tub filler (3.38 ft = 1.03 m);
+// family bath: tub rim (1.84 ft = 0.56 m); stair window: the lower flight and landing (5.03 ft = 1.534 m).
+const HEM_ABOVE_FT: Record<string, number> = { 'w-cuisine-s': 3.87, 'w-sdb1-e': 3.38, 'w-sdb2-n': 1.84, 'w-escalier': 5.03 };
+for (const o of openingsFt) if (HEM_ABOVE_FT[o.id] !== undefined) o.hemAbove = HEM_ABOVE_FT[o.id];
+
 // ---------------------------------------------------------------------------------------------
 // Stairs (feet). Two parallel straight flights per storey with a landing at the west end.
 // Up-stair: A (north half, Z 3–6) rises westward from X 20.5 → 13.5, landing (X 10.5–13.5), B (south half) rises eastward to the upper floor.
@@ -371,7 +377,7 @@ export const HOUSE: HouseData = {
   })),
   rooms: roomsFt.map((r) => ({ ...r, bounds: mb(r.bounds) })),
   walls: wallsFt.map((w) => ({ ...w, a: mp(w.a), b: mp(w.b), thickness: m(w.thickness), baseY: m(w.baseY), height: m(w.height) })),
-  openings: openingsFt.map((o) => ({ ...o, at: m(o.at), width: m(o.width), height: m(o.height), sill: m(o.sill) })),
+  openings: openingsFt.map((o) => ({ ...o, at: m(o.at), width: m(o.width), height: m(o.height), sill: m(o.sill), hemAbove: o.hemAbove === undefined ? undefined : m(o.hemAbove) })),
   stairs: stairsFt.map((s) => ({ ...s, bounds: mb(s.bounds), y0: m(s.y0), y1: m(s.y1) })),
   platforms: platformsFt.map((p) => ({ ...p, bounds: mb(p.bounds), y: m(p.y) })),
   ramps: rampsFt.map((s) => ({ ...s, bounds: mb(s.bounds), y0: m(s.y0), y1: m(s.y1) })),
@@ -392,5 +398,5 @@ export const START_POSITION: [number, number, number] = [m(-16), m(GRADE_FT), m(
 /** Yaw (radians, about +Y) at start. yaw = -PI/2 looks toward +X (into the house). */
 export const START_YAW = -Math.PI / 2;
 
-export const PLAYER_EYE_HEIGHT = m(5.5);
-export const PLAYER_RADIUS = 0.28;
+
+

@@ -4,10 +4,15 @@
     "name": "Maison Sara",
     "nameEn": "Sara's house",
     "client": "Sara",
-    "address": "6274 Blvd. des Rossignols, Laval, QC H7L 5V6, Canada",
+    "address": "6274, boul. des Rossignols, Laval (Québec) H7L 5V6",
     "description": "Maison à deux étages avec garage et sous-sol aménagé : 4 chambres à l'étage, 2 chambres et salle familiale au sous-sol, cuisine ouverte avec balcon couvert. 27 fenêtres à habiller.",
     "descriptionEn": "Two-storey house with garage and finished basement: 4 bedrooms upstairs, 2 bedrooms and a family room in the basement, open kitchen with a covered balcony. 27 windows to dress.",
-    "stats": ["3 niveaux", "6 chambres", "3½ salles de bain", "27 fenêtres"],
-    "thumbnail": "preview.png"
+    "stats": [
+      "3 niveaux",
+      "6 chambres",
+      "3½ salles de bain",
+      "27 fenêtres"
+    ],
+    "thumbnail": "preview.jpg"
   }
 ]

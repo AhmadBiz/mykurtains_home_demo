@@ -6,15 +6,15 @@ As of 2026-10-23. Living copy: https://claude.ai/artifact/TYRSX2FEiqJtzrLbJYUTpC
 
 During a client visit, the installer shows the client each covering type and colour on the client's own window, from a phone, in under a minute per option. Option 1 (photo-overlay web app) ships first; Option 3 (native AR) follows only if the photo tool proves its sales value.
 
-Both apps reuse this repository (`houses/sara/`), which already has the parts that are hard to get right:
+Both apps reuse this repository. The 3D covering models live in the archived photoreal walkthrough (`legacy/sara-walkthrough/`, no longer deployed); the live house page (`houses/sara/`) has lightweight SVG drawings of the same catalogue (`src/illustrations/`). The parts that are hard to get right:
 
 | Asset | Where in the repo | Reuse |
 | --- | --- | --- |
-| Product catalogue | `houses/sara/src/data/coverings.ts` | 9 covering types with colour options and the per-window state `{type, color, open, tilt, sheer}`; zebra blinds to be added |
-| 3D covering models | `houses/sara/src/scene/coverings/*.tsx` | Procedural three.js components with a documented local frame (`coverings/types.ts`); render unchanged in both apps |
-| PBR texture pack | `houses/sara/public/textures/`, `src/scene/materials.ts` | Fabric, wood, metal, CC0 (Poly Haven), already web-sized |
-| Picker UI | `houses/sara/src/ui/CoveringPanel.tsx` | Type cards, colour swatches, open and tilt sliders, sheer toggle |
-| Installation standard | `houses/sara/ARCHITECTURE.md` | Ceiling-mounted track with ripple-fold curtains, always |
+| Product catalogue | `legacy/sara-walkthrough/src/data/coverings.ts` | 9 covering types with colour options and the per-window state `{type, color, open, tilt, sheer}`; zebra blinds to be added |
+| 3D covering models | `legacy/sara-walkthrough/src/scene/coverings/*.tsx` | Procedural three.js components with a documented local frame (`coverings/types.ts`); render unchanged in both apps |
+| PBR texture pack | `legacy/sara-walkthrough/public/textures/`, `src/scene/materials.ts` | Fabric, wood, metal, CC0 (Poly Haven), already web-sized |
+| Picker UI | `legacy/sara-walkthrough/src/ui/CoveringPanel.tsx` | Type cards, colour swatches, open and tilt sliders, sheer toggle |
+| Installation standard | `legacy/sara-walkthrough/ARCHITECTURE.md` | Ceiling-mounted track with ripple-fold curtains, always |
 
 What is new in both apps: finding the client's window in a real image, perspective-correct placement, client sessions (save, compare, share), and working with poor connectivity on site.
 
@@ -24,10 +24,10 @@ Move the catalogue, the covering models and the picker into one package, `packag
 
 | Module | Taken from | Contract |
 | --- | --- | --- |
-| `catalogue.ts` | `houses/sara/src/data/coverings.ts` | `COVERING_TYPES`, colour options, `WindowCoveringState`, `defaultStateFor(type)`; adds `zebra` |
-| `models/*.tsx` + `types.ts` | `houses/sara/src/scene/coverings/` | One React Three Fiber component per type, pure and prop-driven: `{width, height, sill, ceiling, reveal, isDoor, state, color}` in metres, rendered in a group at the opening centre on the interior face, +X along the wall, +Y up, +Z into the room |
-| `materials.ts` + `textures.json` | `houses/sara/src/scene/materials.ts` | `usePbr(id, {size})`; the JPGs stay in each app's `public/textures/` (a copy script, not a runtime download) |
-| `ui/CoveringPicker.tsx` | `houses/sara/src/ui/CoveringPanel.tsx` | Headless: `{state, onChange, catalogue, lang}`; styling through the existing CSS variables |
+| `catalogue.ts` | `legacy/sara-walkthrough/src/data/coverings.ts` | `COVERING_TYPES`, colour options, `WindowCoveringState`, `defaultStateFor(type)`; adds `zebra` |
+| `models/*.tsx` + `types.ts` | `legacy/sara-walkthrough/src/scene/coverings/` | One React Three Fiber component per type, pure and prop-driven: `{width, height, sill, ceiling, reveal, isDoor, state, color}` in metres, rendered in a group at the opening centre on the interior face, +X along the wall, +Y up, +Z into the room |
+| `materials.ts` + `textures.json` | `legacy/sara-walkthrough/src/scene/materials.ts` | `usePbr(id, {size})`; the JPGs stay in each app's `public/textures/` (a copy script, not a runtime download) |
+| `ui/CoveringPicker.tsx` | `legacy/sara-walkthrough/src/ui/CoveringPanel.tsx` | Headless: `{state, onChange, catalogue, lang}`; styling through the existing CSS variables |
 
 Zebra blinds (new type, needed by the sales tool):
 
@@ -188,7 +188,7 @@ What Option 1 builds that Option 3 inherits: the `@mykurtains/coverings` package
 
 ## Appendix
 
-Catalogue as it stands in `houses/sara/src/data/coverings.ts`, plus the zebra type to add. Controls: open = raised or drawn back (0 to 1), tilt = slat or vane angle (-1 to 1), sheer = second layer.
+Catalogue as it stands in `legacy/sara-walkthrough/src/data/coverings.ts`, plus the zebra type to add. Controls: open = raised or drawn back (0 to 1), tilt = slat or vane angle (-1 to 1), sheer = second layer.
 
 | Type (id) | Model | Controls | Colours |
 | --- | --- | --- | --- |

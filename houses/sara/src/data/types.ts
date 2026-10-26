@@ -94,6 +94,11 @@ export interface Opening {
   nameFr?: string;
   /** Frosted / privacy glass. */
   frosted?: boolean;
+  /**
+   * Curtains hang floor length unless something fixed stands under the window (a counter and
+   * faucet, a bathtub, stair treads): then the hem stops this many metres above the level's floor.
+   */
+  hemAbove?: number;
 }
 
 export interface StairFlight {

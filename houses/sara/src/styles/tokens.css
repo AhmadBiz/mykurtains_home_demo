@@ -1,0 +1,49 @@
+/* Design tokens: warm black, bone ink, copper accent (after intellikrib.com's hero scene). */
+:root {
+  --bg: #0f0e0d;
+  --surface: #161412;
+  --surface-2: #1c1a17;
+  --line: #2b2826;
+  --line-2: #3a3632;
+  --ink: #f5f3f0;
+  --ink-2: #ada69f;
+  --ink-3: #8f877f;
+  --accent: #e59a63;
+  --accent-soft: #3a2718;
+  --accent-ink: #1b0f05;
+  --danger: #e5776a;
+
+  /* glass model */
+  --edge-near: color-mix(in srgb, var(--ink) 48%, transparent);
+  --edge-mid: color-mix(in srgb, var(--ink) 26%, transparent);
+  --edge-far: color-mix(in srgb, var(--ink) 13%, transparent);
+  --glass-hi: #f5f3f01c;
+  --glass-lo: #f5f3f004;
+  --glass-shade: #00000033;
+  --copper-glow: color-mix(in srgb, var(--accent) 22%, transparent);
+  --pane: color-mix(in srgb, #9fb6c8 10%, transparent);
+
+  --radius: 14px;
+  --radius-lg: 22px;
+  --pill: 999px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --font-sans: 'Geist Variable', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; min-height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}

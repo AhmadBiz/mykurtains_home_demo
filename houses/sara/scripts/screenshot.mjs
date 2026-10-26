@@ -1,323 +1,295 @@
-#!/usr/bin/env node
 /**
- * Headless visual smoke test: builds (if needed), serves dist/ with `vite preview`, drives the app
- * through the debug API (window.__house, see src/store/useStore.ts) and saves PNGs to screenshots/.
+ * Screenshots + quick performance read-out of the production build.
  *
- *   npm run screenshot                 — the full tour → screenshots/*.png
- *   npm run screenshot -- --preview    — only public/preview.png: a 1200×750 shot of the <canvas>
- *                                        (no HUD) from the exterior-front viewpoint in 'high' quality,
- *                                        used as the thumbnail on the multi-house landing page.
- *   QUALITY=low npm run screenshot     — run the tour in the other quality tier ('high' is the default).
- *   ONLY=w-salon-n,w-ch1-e npm run screenshot
- *                                      — only the listed shots (comma-separated base names); every other
- *                                        view is skipped (the covering changes are still applied in order).
+ *   node scripts/screenshot.mjs            → screenshots/*.png and a metrics summary
+ *   node scripts/screenshot.mjs --preview  → public/preview.jpg (stage only, 'all' view), for the house list
  *
- * Under SwiftShader a frame of the realism build takes several seconds (4096 shadow map, 37 lights,
- * post-processing), hence the long timeouts and the initial settle before the first shot.
- *
- * Exit code 1 when a page error or console error occurred (software-WebGL warnings are ignored).
+ * Builds when dist/ is missing, serves it with `vite preview` on :4173, drives Chromium through Playwright.
+ * Exits 1 when the page logs a console error or throws.
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { createConnection } from 'node:net';
+import { existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const DIST = join(ROOT, 'dist');
 const OUT = join(ROOT, 'screenshots');
-const PREVIEW_FILE = join(ROOT, 'public', 'preview.png');
 const PORT = 4173;
-const URL = `http://localhost:${PORT}`;
-const PREVIEW_MODE = process.argv.includes('--preview');
-const VIEWPORT = PREVIEW_MODE ? { width: 1200, height: 750 } : { width: 1280, height: 800 };
-const QUALITY = PREVIEW_MODE ? 'high' : process.env.QUALITY === 'low' ? 'low' : 'high';
-/** Optional shot filter (ONLY=name,name…); unset = the whole tour. */
-const ONLY = process.env.ONLY ? new Set(process.env.ONLY.split(',').map((s) => s.trim()).filter(Boolean)) : null;
-const want = (...names) => !ONLY || names.some((n) => ONLY.has(n));
-/** Per-operation timeout: a software-GL frame can take > 5 s and a screenshot waits for one. */
-const OP_TIMEOUT = 240000;
-/** Exterior-front vantage (metres / radians) shared by the tour and the preview. */
-const EXTERIOR_FRONT = [-14, -1.07 + 1.68, 16, -Math.PI / 2 + 0.25];
+const URL = `http://localhost:${PORT}/`;
+const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+const PREVIEW = process.argv.includes('--preview');
 
-const TOUR = ['w-salon-n', 'd-patio', 'w-ch1-e', 'w-ch3-w', 'w-sdb2-n', 'w-familiale-e', 'w-escalier', 'w-cuisine-s'];
-const CHANGES = {
-  'w-salon-n': { type: 'shutters', color: 'oak', open: 0, tilt: 0.3 },
-  'd-patio': { type: 'curtains', color: 'charcoal', open: 0.5, sheer: true },
-  'w-ch1-e': { type: 'venetian', color: 'walnut', open: 0.3, tilt: 0.6 },
-  'w-ch3-w': { type: 'roller', color: 'graphite-bo', open: 0.2 },
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const kb = (n) => `${(n / 1024).toFixed(1)} KB`;
+
+// ---------------------------------------------------------------------------------------------
+// build + serve
+// ---------------------------------------------------------------------------------------------
+if (!existsSync(join(ROOT, 'dist', 'index.html'))) {
+  console.log('dist/ missing → npm run build');
+  const r = spawnSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'inherit' });
+  if (r.status !== 0) process.exit(1);
+}
+
+const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
+  cwd: ROOT,
+  stdio: ['ignore', 'pipe', 'pipe'],
+  detached: true,
+});
+const stopServer = () => {
+  try {
+    process.kill(-server.pid, 'SIGTERM');
+  } catch {
+    /* already gone */
+  }
+};
+process.on('exit', stopServer);
+
+await new Promise((res, rej) => {
+  let log = '';
+  const t = setTimeout(() => rej(new Error('vite preview did not start:\n' + log)), 20000);
+  const on = (d) => {
+    log += d;
+    if (log.includes(String(PORT))) {
+      clearTimeout(t);
+      res();
+    }
+  };
+  server.stdout.on('data', on);
+  server.stderr.on('data', on);
+  server.on('exit', (c) => rej(new Error(`vite preview exited (${c}):\n${log}`)));
+});
+
+// ---------------------------------------------------------------------------------------------
+// browser helpers
+// ---------------------------------------------------------------------------------------------
+const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
+const problems = [];
+
+/** Records FCP / LCP before any page script runs. */
+const PERF_INIT = () => {
+  window.__perf = { fcp: 0, lcp: 0 };
+  try {
+    new PerformanceObserver((l) => {
+      for (const e of l.getEntries()) if (e.name === 'first-contentful-paint') window.__perf.fcp = e.startTime;
+    }).observe({ type: 'paint', buffered: true });
+    new PerformanceObserver((l) => {
+      for (const e of l.getEntries()) window.__perf.lcp = e.startTime;
+    }).observe({ type: 'largest-contentful-paint', buffered: true });
+  } catch {
+    /* unsupported */
+  }
 };
 
-// ---------------------------------------------------------------- helpers
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-function findExecutable() {
-  const base = process.env.PLAYWRIGHT_BROWSERS_PATH || '/opt/pw-browsers';
-  if (!existsSync(base)) return undefined;
-  const candidates = [];
-  for (const dir of readdirSync(base)) {
-    for (const rel of ['chrome-linux/chrome', 'chrome-linux/headless_shell', 'chrome-linux/chromium', 'chrome']) {
-      const p = join(base, dir, rel);
-      if (existsSync(p) && statSync(p).isFile()) candidates.push({ p, headlessShell: dir.includes('headless_shell') });
-    }
-  }
-  // prefer the full chromium over the headless shell
-  candidates.sort((a, b) => Number(a.headlessShell) - Number(b.headlessShell));
-  return candidates[0]?.p;
-}
-
-function waitForPort(port, timeoutMs = 30000) {
-  const t0 = Date.now();
-  return new Promise((resolveP, reject) => {
-    const tryOnce = () => {
-      const sock = createConnection({ port, host: '127.0.0.1' });
-      sock.once('connect', () => {
-        sock.destroy();
-        resolveP();
-      });
-      sock.once('error', () => {
-        sock.destroy();
-        if (Date.now() - t0 > timeoutMs) reject(new Error(`port ${port} not open after ${timeoutMs} ms`));
-        else setTimeout(tryOnce, 250);
-      });
-    };
-    tryOnce();
+async function newPage(viewport, label) {
+  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1, locale: 'fr-CA' });
+  const page = await ctx.newPage();
+  await page.addInitScript(PERF_INIT);
+  page.on('console', (m) => {
+    if (m.type() === 'error') problems.push(`[${label}] console: ${m.text()}`);
   });
+  page.on('pageerror', (e) => problems.push(`[${label}] pageerror: ${e.message}`));
+  return { ctx, page };
 }
 
-const IGNORE = [/swiftshader/i, /software webgl/i, /GPU stall due to ReadPixels/i, /falling back to software/i, /GroupMarkerNotSet/i];
-const isIgnorable = (text) => IGNORE.some((re) => re.test(text));
-
-// ---------------------------------------------------------------- main
-async function main() {
-  if (!existsSync(join(DIST, 'index.html'))) {
-    console.log('dist/ missing — running vite build');
-    const r = spawnSync('npx', ['vite', 'build'], { cwd: ROOT, stdio: 'inherit' });
-    if (r.status !== 0) throw new Error('vite build failed');
-  }
-  mkdirSync(OUT, { recursive: true });
-
-  // detached → own process group, so killing the group also stops the vite child that npx spawns
-  const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
-  server.stdout.on('data', () => {});
-  server.stderr.on('data', (d) => process.stderr.write(`[preview] ${d}`));
-  let serverKilled = false;
-  const killServer = () => {
-    if (serverKilled) return;
-    serverKilled = true;
-    const signalGroup = (sig) => {
-      try {
-        process.kill(-server.pid, sig);
-      } catch {
-        try {
-          server.kill(sig);
-        } catch {
-          /* already gone */
-        }
-      }
-    };
-    signalGroup('SIGTERM');
-    setTimeout(() => signalGroup('SIGKILL'), 1500).unref();
-  };
-  process.on('exit', killServer);
-
-  const errors = [];
-  const warnings = [];
-  const screenshots = [];
-  let contextLost = false;
-  let browser;
-  try {
-    await waitForPort(PORT);
-
-    const executablePath = findExecutable();
-    const launchOpts = {
-      headless: true,
-      args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--disable-gpu-sandbox'],
-    };
-    if (executablePath) launchOpts.executablePath = executablePath;
-    try {
-      browser = await chromium.launch(launchOpts);
-    } catch (e) {
-      console.warn(`launch with executablePath failed (${e.message}); retrying with the default browser`);
-      delete launchOpts.executablePath;
-      browser = await chromium.launch(launchOpts);
-    }
-    const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
-    page.setDefaultTimeout(OP_TIMEOUT);
-
-    page.on('console', (msg) => {
-      const type = msg.type();
-      const text = msg.text();
-      if (type === 'error') {
-        if (/Context Lost/i.test(text)) {
-          contextLost = true;
-          warnings.push(text);
-        } else if (!isIgnorable(text)) errors.push(text);
-        else warnings.push(text);
-      } else if (type === 'warning' && !isIgnorable(text)) warnings.push(text);
-    });
-    page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
-
-    await page.goto(URL, { waitUntil: 'load' });
-    await page.waitForFunction(() => typeof window.__house === 'object', null, { timeout: 30000 });
-
-    const frames = async (n = 2) =>
-      page.evaluate(
-        (count) =>
-          new Promise((done) => {
-            let i = 0;
-            const tick = () => (++i >= count ? done() : requestAnimationFrame(tick));
-            requestAnimationFrame(tick);
-          }),
-        n,
-      );
-    const SETTLE_FRAMES = 3;
-    // Renderer statistics are accumulated over the settle frames (the post-processing chain resets
-    // gl.info on every pass, so a single read only ever sees the final screen quad).
-    const settle = async (ms) => {
-      await sleep(ms);
-      await page.evaluate(() => {
-        const info = window.__house?.gl?.info;
-        if (info) {
-          info.autoReset = false;
-          info.reset();
-        }
-      });
-      await frames(SETTLE_FRAMES);
-    };
-    const shot = async (name, assessment = '') => {
-      const file = join(OUT, `${name}.png`);
-      // per-frame draw calls / triangles, averaged over the settle frames (window.__house.gl is set by
-      // Scene.tsx). Read BEFORE the screenshot: page.screenshot waits for fresh frames, and with
-      // autoReset off those would be accumulated too and inflate the per-frame estimate several-fold.
-      const info = await page.evaluate((n) => {
-        const info = window.__house?.gl?.info;
-        if (!info) return 'n/a';
-        const r = info.render;
-        const s = `~${Math.round(r.calls / n)} calls, ~${Math.round(r.triangles / n)} tris per frame`;
-        info.autoReset = true;
-        return s;
-      }, SETTLE_FRAMES);
-      const t0 = Date.now();
-      await page.screenshot({ path: file, timeout: OP_TIMEOUT });
-      screenshots.push(`screenshots/${name}.png`);
-      console.log(`  shot ${name}.png (${((Date.now() - t0) / 1000).toFixed(1)} s, ${info})${assessment ? ' — ' + assessment : ''}`);
-    };
-    const api = (fn, ...args) => page.evaluate(([f, a]) => new Function('a', `return (${f})(window.__house, ...a)`)(a), [fn, args]);
-    // The scene mounts under its own <Suspense fallback={null}> (textures + HDRI), independent of the
-    // HUD's `.lf` spinner: wait for the HUD, then for the scene graph to exist (Scene.tsx sets
-    // window.__house.scene once it is mounted) and for a frame that actually drew it (info.render
-    // .calls is the last frame's draw-call count; an empty scene draws nothing and the shot is blank).
-    const waitForScene = async () => {
-      await page.waitForFunction(() => !document.querySelector('.lf'), null, { timeout: OP_TIMEOUT });
-      await page.waitForFunction(
-        () => {
-          const h = window.__house;
-          return !!h?.scene && h.scene.children.length > 5 && (h.gl?.info?.render?.calls ?? 0) > 0;
-        },
-        null,
-        { timeout: OP_TIMEOUT, polling: 500 },
-      );
-      await frames(2);
-    };
-
-    // ---- start
-    await api('(h, q) => h.state().setQuality(q)', QUALITY);
-    await api('(h) => h.start()');
-    await waitForScene();
-    // Software GL needs a long first settle (texture upload + shader compilation) or the shot is black.
-    await settle(8000);
-
-    if (PREVIEW_MODE) {
-      await api('(h, v) => h.teleport(...v)', EXTERIOR_FRONT);
-      await settle(3000);
-      mkdirSync(dirname(PREVIEW_FILE), { recursive: true });
-      // An element screenshot is a clip of the page, so the HUD overlaying the canvas would still be
-      // captured: hide every other element for the shot (visibility is inherited but overridable).
-      // Only the first <canvas> (the WebGL one) is kept — the minimap is a 2D canvas in the HUD.
-      await page.addStyleTag({ content: '* { visibility: hidden !important; }' });
-      await page.evaluate(() => document.querySelector('canvas')?.style.setProperty('visibility', 'visible', 'important'));
-      await frames(2);
-      await page.locator('canvas').first().screenshot({ path: PREVIEW_FILE, timeout: OP_TIMEOUT });
-      screenshots.push('public/preview.png');
-      console.log('  shot public/preview.png (canvas only, 1200×750, quality high)');
-      await browser.close().catch(() => {});
-      browser = undefined;
-      killServer();
-      const summary = { errors, warnings, screenshots, contextLost };
-      console.log(JSON.stringify(summary, null, 2));
-      return errors.length > 0 ? 1 : 0;
-    }
-
-    if (want('01-start')) await shot('01-start');
-
-    // ---- window tour (default coverings)
-    for (const id of TOUR) {
-      if (!want(id)) continue;
-      await api('(h, id) => h.goToWindow(id)', id);
-      await settle(1200);
-      await shot(id);
-    }
-
-    // ---- change some coverings
-    for (const [id, patch] of Object.entries(CHANGES)) {
-      await api('(h, id, patch) => h.setCovering(id, patch)', id, patch);
-      if (!want(`${id}-changed`)) continue;
-      await api('(h, id) => h.goToWindow(id)', id);
-      await settle(1200);
-      await shot(`${id}-changed`);
-    }
-
-    // ---- panels
-    if (want('panel-windows', 'panel-covering')) {
-      await api('(h) => h.setPanel("windows")');
-      await settle(500);
-      if (want('panel-windows')) await shot('panel-windows');
-      await api('(h) => h.state().selectWindow("w-ch1-e")');
-      await settle(500);
-      if (want('panel-covering')) await shot('panel-covering');
-      await api('(h) => h.setPanel("none")');
-    }
-
-    // ---- orbit / dollhouse
-    if (want('orbit-ground', 'orbit-upper', 'orbit-basement')) {
-      await api('(h) => { h.setMode("orbit"); h.state().setOrbitLevel("ground"); }');
-      await settle(1500);
-      if (want('orbit-ground')) await shot('orbit-ground');
-      await api('(h) => h.state().setOrbitLevel("upper")');
-      await settle(1200);
-      if (want('orbit-upper')) await shot('orbit-upper');
-      await api('(h) => h.state().setOrbitLevel("basement")');
-      await settle(1200);
-      if (want('orbit-basement')) await shot('orbit-basement');
-    }
-
-    // ---- exterior views
-    if (want('exterior-front', 'exterior-rear')) {
-      await api('(h) => h.setMode("walk")');
-      await settle(300);
-      await api('(h, v) => h.teleport(...v)', EXTERIOR_FRONT);
-      await settle(1500);
-      if (want('exterior-front')) await shot('exterior-front');
-      await api('(h) => h.teleport(22, -1.07 + 1.68, 17, Math.PI / 2 - 0.3)');
-      await settle(1500);
-      if (want('exterior-rear')) await shot('exterior-rear');
-    }
-  } finally {
-    if (browser) await browser.close().catch(() => {});
-    killServer();
-  }
-
-  const summary = { errors, warnings, screenshots, contextLost };
-  console.log(JSON.stringify(summary, null, 2));
-  const failed = errors.length > 0 || (contextLost && screenshots.length === 0);
-  return failed ? 1 : 0;
+/** Navigate and wait until the model has placed its chips and the first ease-in has settled. */
+async function open(page, settle = 1400) {
+  await page.goto(URL, { waitUntil: 'load' });
+  await page.waitForSelector('.hm-chip[data-placed]', { timeout: 15000 });
+  await page.evaluate(() => document.fonts.ready);
+  await sleep(settle);
 }
 
-main()
-  .then((code) => process.exit(code))
-  .catch((e) => {
-    console.error(e);
+const house = (page, fn, ...args) => page.evaluate(([f, a]) => window.__house[f](...a), [fn, args]);
+const shot = (page, name, opts = {}) => page.screenshot({ path: join(OUT, `${name}.png`), ...opts });
+
+// ---------------------------------------------------------------------------------------------
+// --preview: thumbnail for the house list
+// ---------------------------------------------------------------------------------------------
+if (PREVIEW) {
+  const { ctx, page } = await newPage({ width: 1200, height: 750 }, 'preview');
+  await open(page, 400);
+  // Full-bleed stage: hide the header and the panel so the stage is exactly 1200×750.
+  await page.addStyleTag({
+    content: `.hd,.panel{display:none!important}
+      .app,.layout{display:block!important;height:auto!important;padding:0!important;margin:0!important}
+      .stage{width:1200px!important;height:750px!important;margin:0!important;border-radius:0!important;border:0!important}`,
+  });
+  await house(page, 'level', 'all');
+  await sleep(2600); // re-layout of the model and the chips, then let the sway ease in
+  const out = join(ROOT, 'public', 'preview.jpg');
+  await page.locator('.stage').screenshot({ path: out, type: 'jpeg', quality: 82 });
+  const box = await page.locator('.stage').boundingBox();
+  console.log(`preview → ${out} (${Math.round(box.width)}×${Math.round(box.height)}, ${kb(statSync(out).size)})`);
+  await ctx.close();
+  await browser.close();
+  stopServer();
+  if (problems.length) {
+    console.log('\nERRORS\n' + problems.join('\n'));
     process.exit(1);
+  }
+  process.exit(0);
+}
+
+mkdirSync(OUT, { recursive: true });
+
+// ---------------------------------------------------------------------------------------------
+// desktop 1440×900
+// ---------------------------------------------------------------------------------------------
+{
+  const { ctx, page } = await newPage({ width: 1440, height: 900 }, 'desktop');
+
+  // transferred bytes by resource type (first, cold load)
+  const cdp = await ctx.newCDPSession(page);
+  await cdp.send('Network.enable');
+  await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
+  const types = new Map();
+  const bytes = { Document: 0, Script: 0, Stylesheet: 0, Font: 0, Other: 0 };
+  const files = [];
+  cdp.on('Network.responseReceived', (e) => types.set(e.requestId, { type: e.type, url: e.response.url }));
+  cdp.on('Network.loadingFinished', (e) => {
+    const r = types.get(e.requestId);
+    if (!r) return;
+    const k = r.type in bytes ? r.type : 'Other';
+    bytes[k] += e.encodedDataLength;
+    files.push(`${k.padEnd(10)} ${kb(e.encodedDataLength).padStart(9)}  ${r.url.replace(URL, '/')}`);
   });
+
+  await open(page);
+  await cdp.send('Network.setCacheDisabled', { cacheDisabled: false });
+
+  const m = await page.evaluate(() => {
+    const nav = performance.getEntriesByType('navigation')[0];
+    return {
+      dcl: nav.domContentLoadedEventEnd,
+      fcp: window.__perf.fcp,
+      lcp: window.__perf.lcp,
+      stageNodes: document.querySelector('.stage').querySelectorAll('*').length,
+      modelNodes: document.querySelectorAll('.stage .hm-layer *').length,
+      overflowX: document.documentElement.scrollWidth > innerWidth,
+    };
+  });
+
+  await shot(page, '01-overview');
+  for (const [i, l] of [['02', 'upper'], ['03', 'ground'], ['04', 'basement']]) {
+    await house(page, 'level', l);
+    await sleep(1500);
+    if (l === 'upper') m.stageNodesUpper = await page.evaluate(() => document.querySelector('.stage').querySelectorAll('*').length);
+    await shot(page, `${i}-${l}`);
+  }
+
+  // drag the stage ~200 px over 2 s and count animation frames meanwhile
+  await house(page, 'level', 'all');
+  await sleep(1500);
+  const box = await page.locator('.stage').boundingBox();
+  const cx = box.x + box.width * 0.45;
+  const cy = box.y + box.height * 0.55;
+  await page.evaluate(() => {
+    window.__frames = [];
+    const tick = (t) => {
+      window.__frames.push(t);
+      if (!window.__stopFrames) requestAnimationFrame(tick);
+    };
+    window.__stopFrames = false;
+    requestAnimationFrame(tick);
+  });
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  const t0 = Date.now();
+  const STEPS = 60;
+  for (let s = 1; s <= STEPS; s++) {
+    await page.mouse.move(cx + (200 * s) / STEPS, cy + (10 * s) / STEPS);
+    const wait = t0 + (2000 * s) / STEPS - Date.now();
+    if (wait > 0) await sleep(wait);
+  }
+  await page.mouse.up();
+  const fr = await page.evaluate(() => {
+    window.__stopFrames = true;
+    const f = window.__frames;
+    const gaps = f.slice(1).map((t, i) => t - f[i]);
+    const span = f[f.length - 1] - f[0];
+    return {
+      frames: f.length,
+      fps: ((f.length - 1) * 1000) / span,
+      worst: Math.max(...gaps),
+      over33: gaps.filter((g) => g > 33.4).length,
+    };
+  });
+  await sleep(1200);
+  await shot(page, '05-rotated');
+
+  // one panel screenshot per covering type
+  const cases = [
+    ['10-curtains-sheer', 'w-ch1-e', { type: 'curtains', color: 'navy', open: 0.65, sheer: true }],
+    ['11-sheers', 'w-sam-e', { type: 'sheers', color: 'white', open: 0.15 }],
+    ['12-roller', 'w-ch6-n', { type: 'roller', color: 'grey-lf', open: 0.55 }],
+    ['13-roman', 'w-ch2-e', { type: 'roman', color: 'olive', open: 0.45 }],
+    ['14-cellular', 'w-ch5-n', { type: 'cellular', color: 'cream', open: 0.35 }],
+    ['15-venetian', 'w-familiale-e', { type: 'venetian', color: 'oak', open: 0.2, tilt: 0.4 }],
+    ['16-vertical', 'd-patio', { type: 'vertical', color: 'ivory-fabric', open: 0.3, tilt: 0.5 }],
+    ['17-shutters', 'w-ch3-w', { type: 'shutters', color: 'white', open: 0.15, tilt: 0.3 }],
+    ['18-none', 'w-escalier', { type: 'none', color: 'none' }],
+    ['19-curtains-kitchen', 'w-cuisine-s', { type: 'curtains', color: 'sage', open: 0.7, sheer: false }],
+  ];
+  for (const [name, id, patch] of cases) {
+    await house(page, 'set', id, patch);
+    await house(page, 'select', id);
+    await sleep(1100);
+    const sel = await page.evaluate(() => window.__house.state().selectedWindowId);
+    if (sel !== id) problems.push(`[desktop] ${name}: selected ${sel}, expected ${id}`);
+    await page.evaluate(() => document.querySelector('.panel')?.scrollTo(0, 0));
+    await shot(page, name, { clip: await page.locator('.panel').boundingBox() });
+    if (name === '10-curtains-sheer') await shot(page, '06-selected');
+  }
+  await house(page, 'select', null);
+  await ctx.close();
+
+  console.log('\nTransferred on a cold load (encoded bytes, as served by vite preview):');
+  for (const f of files.sort()) console.log('  ' + f);
+  for (const [k, v] of Object.entries(bytes)) if (v) console.log(`  total ${k.padEnd(10)} ${kb(v)}`);
+  console.log('\nDesktop 1440×900');
+  console.log(`  DOMContentLoaded        ${m.dcl.toFixed(0)} ms`);
+  console.log(`  First contentful paint  ${m.fcp.toFixed(0)} ms`);
+  console.log(`  Largest contentful paint ${m.lcp.toFixed(0)} ms`);
+  console.log(`  DOM nodes in .stage     ${m.stageNodes} ('all') · ${m.stageNodesUpper} ('upper') · model planes only ${m.modelNodes}`);
+  console.log(`  Horizontal overflow     ${m.overflowX ? 'YES' : 'no'}`);
+  console.log(
+    `  Drag rotation (2 s)     ${fr.frames} frames · ${fr.fps.toFixed(1)} fps · worst gap ${fr.worst.toFixed(1)} ms · ${fr.over33} gaps > 33 ms`,
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// phone 390×844
+// ---------------------------------------------------------------------------------------------
+{
+  const { ctx, page } = await newPage({ width: 390, height: 844 }, 'phone');
+  await open(page);
+  const pm = await page.evaluate(() => ({
+    fcp: window.__perf.fcp,
+    lcp: window.__perf.lcp,
+    overflowX: document.documentElement.scrollWidth > innerWidth,
+  }));
+  await shot(page, 'm1-overview');
+  await house(page, 'select', 'w-salon-n');
+  await sleep(1600); // smooth scroll to the sheet
+  await shot(page, 'm2-selected');
+  await house(page, 'select', null);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await house(page, 'level', 'upper');
+  await sleep(1500);
+  await shot(page, 'm3-upper');
+  const ov = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+  await ctx.close();
+  console.log('\nPhone 390×844');
+  console.log(`  FCP ${pm.fcp.toFixed(0)} ms · LCP ${pm.lcp.toFixed(0)} ms · horizontal overflow ${pm.overflowX || ov ? 'YES' : 'no'}`);
+}
+
+await browser.close();
+stopServer();
+console.log(`\nScreenshots in ${OUT}`);
+if (problems.length) {
+  console.log('\nERRORS\n' + problems.join('\n'));
+  process.exit(1);
+}
+process.exit(0);
