@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { COVERING_BY_ID } from '../data/coverings';
 import type { CoveringType } from '../data/coverings';
@@ -10,7 +10,7 @@ import { angleDelta, ease, project } from './camera';
 import type { Cam, Viewport } from './camera';
 import { convexHull, layoutChips, rectExit } from './layout';
 import type { Pt, Rect } from './layout';
-import { Level } from './Level';
+import { Slab, Walls } from './Level';
 import { HOUSE_FRAME, SCENE_LEVELS, SCENE_LEVEL_BY_ID, floorOf, windowAnchor } from './model';
 import './scene.css';
 
@@ -54,6 +54,7 @@ const SHORT_TYPE: Record<CoveringType, [string, string]> = {
   shutters: ['persiennes', 'shutters'],
 };
 const stripParen = (s: string) => s.replace(/\s*\(.*\)$/, '');
+const snap90 = (deg: number) => ((((Math.round(deg / 90) * 90) % 360) + 360) % 360);
 
 // -------------------------------------------------------------------------------------------
 // Framing per filter
@@ -83,7 +84,7 @@ const HULL_POINTS: Record<LevelFilter, V3[]> = (() => {
 function frameFor(filter: LevelFilter, vp: Viewport): Frame {
   const narrow = vp.w < 640;
   const all = filter === 'all';
-  const mx = narrow ? (all ? 30 : 34) : all ? Math.min(190, Math.max(110, vp.w * 0.13)) : Math.min(230, Math.max(130, vp.w * 0.17));
+  const mx = narrow ? (all ? 30 : 34) : all ? Math.min(190, Math.max(110, vp.w * 0.13)) : Math.min(200, Math.max(110, vp.w * 0.14));
   const my = narrow ? (all ? 34 : 56) : all ? Math.max(40, vp.h * 0.07) : Math.max(64, vp.h * 0.13);
   const halfW = Math.max(40, vp.w / 2 - mx);
   const halfH = Math.max(40, vp.h / 2 - my);
@@ -158,6 +159,7 @@ interface Motion {
   chipPos: Map<string, Pt>;
   chipSize: Map<string, [number, number]>;
   obstacle: Rect | null;
+  textAngle: number;
 }
 
 export function HouseModel() {
@@ -170,14 +172,22 @@ export function HouseModel() {
   const fr = lang === 'fr';
   const t = useT();
   const reduced = useReducedMotion();
+  /** Room names on the slabs turn in 90° steps to stay readable as the house turns. */
+  const [textAngle, setTextAngle] = useState(() => snap90(YAW0));
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const perspRef = useRef<HTMLDivElement>(null);
-  const tiltRef = useRef<HTMLDivElement>(null);
-  const worldRef = useRef<HTMLDivElement>(null);
+  const tiltEls = useRef(new Set<HTMLDivElement>());
+  const worldEls = useRef(new Set<HTMLDivElement>());
   const ctrlRef = useRef<HTMLDivElement>(null);
   const chipEls = useRef(new Map<string, HTMLButtonElement>());
   const lineEls = useRef(new Map<string, SVGGElement>());
+
+  const regTilt = useCallback((el: HTMLDivElement | null) => {
+    if (el) tiltEls.current.add(el);
+  }, []);
+  const regWorld = useCallback((el: HTMLDivElement | null) => {
+    if (el) worldEls.current.add(el);
+  }, []);
 
   const m = useRef<Motion>({
     yaw: YAW0,
@@ -210,6 +220,7 @@ export function HouseModel() {
     chipPos: new Map(),
     chipSize: new Map(),
     obstacle: null,
+    textAngle: snap90(YAW0),
   }).current;
 
   // ---------------------------------------------------------------------------------------
@@ -223,9 +234,7 @@ export function HouseModel() {
   tickRef.current = (now: number) => {
     m.raf = 0;
     const root = rootRef.current;
-    const tilt = tiltRef.current;
-    const world = worldRef.current;
-    if (!root || !tilt || !world) return;
+    if (!root || !tiltEls.current.size) return;
     const dt = m.lastT ? Math.min(64, Math.max(0, now - m.lastT)) : 16;
     m.lastT = now;
 
@@ -239,7 +248,7 @@ export function HouseModel() {
     }
     if (!m.dragging && Math.abs(m.vel) > 0.0004) {
       m.yaw += m.vel * dt;
-      m.vel *= Math.exp(-dt / 340);
+      m.vel *= Math.exp(-dt / 300);
     } else if (!m.dragging) m.vel = 0;
 
     // sway (folds in smoothly; never jumps)
@@ -273,10 +282,17 @@ export function HouseModel() {
     const f = m.frame;
     const k = f.s / m.u0;
     const yaw = m.yaw + sway;
-    tilt.style.transform = `rotateX(${m.pitch.toFixed(3)}deg) rotateY(${yaw.toFixed(3)}deg)`;
-    world.style.transform =
+    const tiltT = `rotateX(${m.pitch.toFixed(3)}deg) rotateY(${yaw.toFixed(3)}deg)`;
+    const worldT =
       `scale3d(${k.toFixed(5)},${k.toFixed(5)},${k.toFixed(5)}) ` +
       `translate3d(${(-f.cx * m.u0).toFixed(2)}px,${(f.cy * m.u0).toFixed(2)}px,${(-f.cz * m.u0).toFixed(2)}px)`;
+    for (const el of tiltEls.current) el.style.transform = tiltT;
+    for (const el of worldEls.current) el.style.transform = worldT;
+
+    if (!m.dragging && !m.angleTween && Math.abs(angleDelta(m.textAngle, m.yaw)) > 52) {
+      m.textAngle = snap90(m.yaw);
+      setTextAngle(m.textAngle);
+    }
 
     const chipsMoving = placeChips({ yaw, pitch: m.pitch, ...f }, dt);
 
@@ -404,7 +420,7 @@ export function HouseModel() {
     if (!w || !h) return;
     const p = Math.round(Math.max(w, h) * 2.6);
     m.vp = { w, h, p };
-    perspRef.current?.style.setProperty('perspective', `${p}px`);
+    root.style.setProperty('--persp', `${p}px`);
     const c = ctrlRef.current;
     m.obstacle = c ? { x0: c.offsetLeft - 4, y0: c.offsetTop - 4, x1: c.offsetLeft + c.offsetWidth + 4, y1: c.offsetTop + c.offsetHeight + 4 } : null;
     const target = frameFor(m.filter, m.vp);
@@ -422,6 +438,17 @@ export function HouseModel() {
     const root = rootRef.current;
     if (!root) return;
     measure();
+    // first frame synchronously, so the model never paints untransformed
+    cancelAnimationFrame(m.raf);
+    m.raf = 0;
+    tickRef.current(performance.now());
+    // chip widths change once the web font is in
+    let alive = true;
+    document.fonts?.ready.then(() => {
+      if (!alive) return;
+      m.chipSize.clear();
+      kick();
+    });
     const ro = new ResizeObserver(() => measure());
     ro.observe(root);
     const io = new IntersectionObserver(([e]) => {
@@ -433,6 +460,7 @@ export function HouseModel() {
     });
     io.observe(root);
     return () => {
+      alive = false;
       ro.disconnect();
       io.disconnect();
       cancelAnimationFrame(m.raf);
@@ -448,8 +476,12 @@ export function HouseModel() {
     kick();
   }, [levelFilter, m, kick]);
 
-  // motion preferences
+  // motion preferences: stopping folds the current sway into the yaw, so the house stops where it is
   useEffect(() => {
+    if (paused || reduced) {
+      m.yaw += SWAY_DEG * Math.sin((2 * Math.PI * m.phase) / SWAY_MS) * m.amp;
+      m.amp = 0;
+    }
     m.allowSway = !paused && !reduced;
     m.instant = reduced;
     kick();
@@ -526,7 +558,7 @@ export function HouseModel() {
       m.dragging = false;
       m.suppressClick = true;
       if (performance.now() - m.lastMoveT > 80) m.vel = 0;
-      m.vel = Math.max(-0.6, Math.min(0.6, m.vel));
+      m.vel = Math.max(-0.22, Math.min(0.22, m.vel));
       rootRef.current?.removeAttribute('data-drag');
       m.lastInput = performance.now();
       kick();
@@ -559,7 +591,6 @@ export function HouseModel() {
     return out;
   }, [poolWin]);
 
-  const textAngle = Math.round(YAW0 / 90) * 90;
 
   interface ChipView extends ChipSpec {
     label: string;
@@ -650,24 +681,33 @@ export function HouseModel() {
           </radialGradient>
         </defs>
       </svg>
-      <div ref={perspRef} className="hm-persp">
-        <div ref={tiltRef} className="hm-tilt">
-          <div ref={worldRef} className="hm-world">
-            <div className="hm-cast" style={cast} />
-            {SCENE_LEVELS.map((l) => (
-              <Level
-                key={l.id}
-                level={l}
-                dim={levelFilter !== 'all' && levelFilter !== l.id}
-                showLabels={levelFilter === l.id}
-                pool={pools[l.id] ?? null}
-                fr={fr}
-                textAngle={textAngle}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
+      {/*
+        One flat layer per storey part, painted bottom → top: [slab, walls] per storey. The camera always
+        looks from above, so this painter's order is exact and Chrome only depth-sorts the vertical
+        walls of one storey among themselves (its BSP sorting of many crossing planes is not reliable).
+      */}
+      {SCENE_LEVELS.map((l) => {
+        const dim = levelFilter !== 'all' && levelFilter !== l.id;
+        return (
+          <Fragment key={l.id}>
+            <div className="hm-layer" data-dim={dim ? '' : undefined} aria-hidden="true">
+              <div className="hm-tilt" ref={regTilt}>
+                <div className="hm-world" ref={regWorld}>
+                  {l.id === 'basement' && <div className="hm-cast" style={cast} />}
+                  <Slab level={l} showLabels={levelFilter === l.id} pool={pools[l.id] ?? null} fr={fr} textAngle={textAngle} />
+                </div>
+              </div>
+            </div>
+            <div className="hm-layer" data-dim={dim ? '' : undefined}>
+              <div className="hm-tilt" ref={regTilt}>
+                <div className="hm-world" ref={regWorld}>
+                  <Walls level={l} dim={dim} />
+                </div>
+              </div>
+            </div>
+          </Fragment>
+        );
+      })}
 
       <svg className="hm-lines" aria-hidden="true">
         {chips.map((c) => (

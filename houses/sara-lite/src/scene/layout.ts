@@ -169,9 +169,19 @@ export function layoutChips(chips: ChipIn[], hull: Pt[], stage: Rect, obstacles:
       const t = pushOut(axes, p, c.hw, c.hh, margin, d);
       if (t > 0) {
         moved = true;
+        const before: Pt = [p[0], p[1]];
         p[0] += d[0] * Math.min(t, 12);
         p[1] += d[1] * Math.min(t, 12);
         clampIn(i);
+        // pinned against the stage edge: slide along it (up or down, whichever frees it sooner)
+        if (Math.hypot(p[0] - before[0], p[1] - before[1]) < 0.5) {
+          const up = pushOut(axes, p, c.hw, c.hh, margin, [0, -1]);
+          const down = pushOut(axes, p, c.hw, c.hh, margin, [0, 1]);
+          const okUp = p[1] - up - c.hh >= stage.y0;
+          const okDown = p[1] + down + c.hh <= stage.y1;
+          const dy = okUp && (!okDown || up <= down) ? -up : okDown ? down : 0;
+          p[1] += Math.sign(dy) * Math.min(Math.abs(dy), 12);
+        }
       }
     }
     if (!moved) break;

@@ -99,24 +99,30 @@ function labelGeom(l: RoomLabel, textAngle: number, fr: boolean) {
   return { text, ang, size };
 }
 
-function Slab({ level, showLabels, pool, fr, textAngle }: { level: SceneLevel; showLabels: boolean; pool: [number, number] | null; fr: boolean; textAngle: number }) {
+/** The slab SVG is authored in centimetres: Chrome rasterises tiny SVG font sizes poorly. */
+const CM = 100;
+const cm = (v: number) => Math.round(v * CM * 10) / 10;
+
+export const Slab = memo(function Slab({ level, showLabels, pool, fr, textAngle }: { level: SceneLevel; showLabels: boolean; pool: [number, number] | null; fr: boolean; textAngle: number }) {
   const s = level.slab;
   const [x0, z0, w, d] = s.box;
   const style: Vars = { '--x': r3(x0), '--y': r3(s.y), '--z': r3(z0), '--len': r3(w), '--dep': r3(d) };
   return (
     <div className="hm-slab" style={style}>
-      <svg viewBox={`${r3(x0)} ${r3(z0)} ${r3(w)} ${r3(d)}`} preserveAspectRatio="none" aria-hidden="true">
-        <path className="hm-slab-fill" d={s.fill} fillRule="evenodd" />
-        {pool && <circle className="hm-pool" cx={r3(pool[0])} cy={r3(pool[1])} r={2.4} />}
-        <path className="hm-plan" d={s.inner} />
-        {s.rails && <path className="hm-plan hm-rail" d={s.rails} />}
-        <path className="hm-outline" d={s.outline} />
+      <svg viewBox={`${cm(x0)} ${cm(z0)} ${cm(w)} ${cm(d)}`} preserveAspectRatio="none" aria-hidden="true">
+        <g transform={`scale(${CM})`}>
+          <path className="hm-slab-fill" d={s.fill} fillRule="evenodd" />
+          {pool && <circle className="hm-pool" cx={r3(pool[0])} cy={r3(pool[1])} r={2.4} />}
+          <path className="hm-plan" d={s.inner} />
+          {s.rails && <path className="hm-plan hm-rail" d={s.rails} />}
+          <path className="hm-outline" d={s.outline} />
+        </g>
         {showLabels && (
           <g className="hm-rooms">
             {s.labels.map((l) => {
               const g = labelGeom(l, textAngle, fr);
               return (
-                <text key={l.id} x={r3(l.x)} y={r3(l.z)} fontSize={r3(g.size)} transform={`rotate(${g.ang} ${r3(l.x)} ${r3(l.z)})`}>
+                <text key={l.id} x={cm(l.x)} y={cm(l.z)} fontSize={cm(g.size)} transform={`rotate(${g.ang} ${cm(l.x)} ${cm(l.z)})`}>
                   {g.text}
                 </text>
               );
@@ -126,28 +132,17 @@ function Slab({ level, showLabels, pool, fr, textAngle }: { level: SceneLevel; s
       </svg>
     </div>
   );
-}
+});
 
 // -------------------------------------------------------------------------------------------
-// One storey
+// One storey's glass walls (sorted in 3D among themselves only)
 // -------------------------------------------------------------------------------------------
-export interface LevelProps {
-  level: SceneLevel;
-  dim: boolean;
-  showLabels: boolean;
-  /** Plan point (x, z) for the copper pool (selected or hovered window), or null. */
-  pool: [number, number] | null;
-  fr: boolean;
-  textAngle: number;
-}
-
-export const Level = memo(function Level({ level, dim, showLabels, pool, fr, textAngle }: LevelProps) {
+export const Walls = memo(function Walls({ level, dim }: { level: SceneLevel; dim: boolean }) {
   return (
-    <div className="hm-level" data-level={level.id} data-dim={dim ? '' : undefined}>
-      <Slab level={level} showLabels={showLabels} pool={pool} fr={fr} textAngle={textAngle} />
+    <>
       {level.walls.map((g) => (
         <Wall key={g.wall.id} g={g} dim={dim} />
       ))}
-    </div>
+    </>
   );
 });
