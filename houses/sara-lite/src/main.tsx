@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import '@fontsource-variable/geist';
+import './styles/fonts.css';
 import './styles/tokens.css';
 import App from './App';
 import { exposeDebugApi } from './store/useStore';

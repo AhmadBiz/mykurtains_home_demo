@@ -84,7 +84,7 @@ const HULL_POINTS: Record<LevelFilter, V3[]> = (() => {
 function frameFor(filter: LevelFilter, vp: Viewport): Frame {
   const narrow = vp.w < 640;
   const all = filter === 'all';
-  const mx = narrow ? (all ? 30 : 34) : all ? Math.min(190, Math.max(110, vp.w * 0.13)) : Math.min(200, Math.max(110, vp.w * 0.14));
+  const mx = narrow ? (all ? 30 : 34) : all ? Math.min(190, Math.max(110, vp.w * 0.13)) : Math.min(230, Math.max(110, vp.w * 0.19));
   const my = narrow ? (all ? 34 : 56) : all ? Math.max(40, vp.h * 0.07) : Math.max(64, vp.h * 0.13);
   const halfW = Math.max(40, vp.w / 2 - mx);
   const halfH = Math.max(40, vp.h / 2 - my);

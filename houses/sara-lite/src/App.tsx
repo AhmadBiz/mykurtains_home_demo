@@ -1,6 +1,7 @@
 import { Header } from './ui/Header';
 import { HouseModel } from './scene/HouseModel';
 import { SidePanel } from './ui/SidePanel';
+import { useT } from './store/useStore';
 import './ui/layout.css';
 
 /**
@@ -9,11 +10,12 @@ import './ui/layout.css';
  * On phones the panel stacks under the model.
  */
 export default function App() {
+  const t = useT();
   return (
     <div className="app">
       <Header />
       <main className="layout">
-        <section className="stage" aria-label="Maquette de la maison">
+        <section className="stage" aria-label={t('Maquette de la maison', 'House model')}>
           <HouseModel />
         </section>
         <SidePanel />
