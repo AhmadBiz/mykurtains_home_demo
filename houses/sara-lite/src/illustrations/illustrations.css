@@ -1,0 +1,14 @@
+/* Covering drawings (src/illustrations). Movement is CSS-only: transforms / opacity transition on state change. */
+.ci-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.ci-anim {
+  transition:
+    transform 350ms var(--ease, cubic-bezier(0.2, 0.7, 0.2, 1)),
+    opacity 350ms var(--ease, cubic-bezier(0.2, 0.7, 0.2, 1));
+}
+@media (prefers-reduced-motion: reduce) {
+  .ci-anim { transition: none; }
+}
