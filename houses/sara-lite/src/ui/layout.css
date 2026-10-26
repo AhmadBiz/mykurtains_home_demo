@@ -26,10 +26,10 @@
   border-radius: 6px;
   transition: color 0.2s;
 }
-.hd-back:hover { color: var(--ink); }
 .hd-name { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; }
 .hd-addr { margin: 0; font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hd-ctrl { display: flex; align-items: center; gap: 12px; flex: none; }
+.hd-bar { display: flex; min-width: 0; }
 
 .seg {
   display: inline-flex;
@@ -53,7 +53,6 @@
   cursor: pointer;
   transition: color 0.2s, background-color 0.2s;
 }
-.seg-btn:hover { color: var(--ink); }
 .seg-btn[aria-pressed='true'] {
   color: var(--ink);
   background: var(--surface-2);
@@ -94,6 +93,30 @@
   scrollbar-width: thin;
   scrollbar-color: var(--line-2) transparent;
 }
+/* Desktop: fade the bottom edge of the scroll area so clipped content reads as "scrolls", not "cut".
+   Sticky inside the scroll container; at the end it only covers the panel's bottom padding. */
+.panel::after {
+  content: '';
+  display: block;
+  position: sticky;
+  bottom: 0;
+  height: 28px;
+  margin-top: -28px;
+  background: linear-gradient(to bottom, transparent, var(--surface));
+  pointer-events: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* ---------------------------------------------------------------- panel: shared */
 .sp { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
@@ -117,7 +140,6 @@
   border-radius: 6px;
   transition: color 0.2s;
 }
-.quiet:hover { color: var(--ink); }
 
 /* ---------------------------------------------------------------- panel: overview */
 .sp-overview { gap: 16px; }
@@ -126,14 +148,14 @@
 .sp-level + .sp-level { margin-top: 8px; }
 .sp-level-name {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--ink);
   padding-bottom: 8px;
   border-bottom: 1px solid var(--line);
 }
 .sp-room { display: grid; gap: 2px; }
-.sp-room-name { margin: 8px 0 2px; font-size: 13px; font-weight: 500; color: var(--ink-3); }
+.sp-room-name { margin: 8px 0 2px; font-size: 14px; font-weight: 600; color: var(--ink); }
 .sp-rows { list-style: none; margin: 0 -8px; padding: 0; display: grid; gap: 2px; }
 
 .row {
@@ -155,13 +177,13 @@
 .row-name {
   min-width: 0;
   font-size: 15px;
-  color: var(--ink);
+  color: var(--ink-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.row:hover,
 .row[data-hot] { background: var(--surface-2); border-color: var(--line); }
+.row[data-hot] .row-name { color: var(--ink); }
 .row[data-hot] .chip { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
 
 .chip {
@@ -204,9 +226,8 @@
   cursor: pointer;
   transition: color 0.2s, background-color 0.2s;
 }
-.back:hover { color: var(--ink); background: var(--surface-2); }
 .stepper { display: inline-flex; align-items: center; gap: 4px; }
-.stepper-n { font-size: 13px; color: var(--ink-3); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+.stepper-n { font-size: 13px; color: var(--ink-3); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .icon-btn {
   appearance: none;
   display: grid;
@@ -221,24 +242,43 @@
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s;
 }
-.icon-btn:hover { color: var(--ink); border-color: var(--line-2); }
 
 .sp-window .sp-head { gap: 2px; }
 .sp-wtitle { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; outline: none; }
 .sp-wtitle:focus,
 .sp-wtitle:focus-visible { outline: none; }
 .sp-sub { margin: 0; font-size: 13px; color: var(--ink-2); }
+.sp-locate {
+  appearance: none;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  margin: -6px 0 -6px -8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--pill);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.sp-locate svg { color: var(--accent); flex: none; }
 
+/* The drawing stays in view while the controls under it scroll: full-bleed sticky band. */
 .sp-figure {
-  margin: -8px 0 0;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -8px -24px 0;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 10px 18px -12px #000;
   display: grid;
   place-items: center;
 }
-.sp-figure svg { display: block; width: 100%; height: auto; max-height: min(44vh, 360px); }
+.sp-figure svg { display: block; width: 100%; height: auto; max-height: min(40vh, 340px); border-radius: 10px; }
 
 .field { display: grid; gap: 12px; }
 .field-label {
@@ -252,32 +292,34 @@
 }
 .field-value { color: var(--ink); font-weight: 400; text-align: right; font-variant-numeric: tabular-nums; }
 .field-note { margin: -4px 0 0; font-size: 13px; color: var(--ink-3); }
+.field-note strong { font-weight: 500; color: var(--ink-2); }
 .field-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .field-label-text { font-size: 13px; font-weight: 500; color: var(--ink-2); }
 
 /* type picker */
-.types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .type-card {
   appearance: none;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
-  min-height: 76px;
-  padding: 12px 6px 10px;
+  gap: 7px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: transparent;
   color: var(--ink-2);
   font-size: 13px;
-  line-height: 1.25;
-  text-align: center;
+  line-height: 1.2;
+  text-align: left;
   cursor: pointer;
   transition: color 0.18s, border-color 0.18s, background-color 0.18s;
 }
+.type-label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .type-card svg { color: var(--ink-2); flex: none; }
-.type-card:hover { color: var(--ink); border-color: var(--line-2); }
 .type-card[aria-pressed='true'] {
   color: var(--ink);
   border-color: var(--accent);
@@ -298,7 +340,6 @@
   cursor: pointer;
   transition: box-shadow 0.18s, transform 0.18s;
 }
-.swatch:hover { transform: scale(1.08); }
 .swatch[aria-pressed='true'] {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent), 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent);
 }
@@ -391,41 +432,60 @@
   cursor: pointer;
   transition: border-color 0.18s, background-color 0.18s;
 }
-.pill:hover { border-color: var(--ink-3); background: var(--surface-2); }
 .pill:disabled { opacity: 0.4; cursor: default; }
 .status { margin: -4px 0 0; min-height: 20px; font-size: 13px; color: var(--accent); }
 
+/* ---------------------------------------------------------------- hover (pointer devices only: no sticky hover after a tap) */
+@media (hover: hover) {
+  .hd-back:hover { color: var(--ink); }
+  .seg-btn:hover { color: var(--ink); }
+  .quiet:hover { color: var(--ink); }
+  .row:hover { background: var(--surface-2); border-color: var(--line); }
+  .row:hover .row-name { color: var(--ink); }
+  .back:hover { color: var(--ink); background: var(--surface-2); }
+  .icon-btn:hover { color: var(--ink); border-color: var(--line-2); }
+  .type-card:hover { color: var(--ink); border-color: var(--line-2); }
+  .swatch:hover { transform: scale(1.08); }
+  .pill:hover { border-color: var(--ink-3); background: var(--surface-2); }
+  .sp-locate:hover { color: var(--ink); background: var(--surface-2); }
+}
+
 /* ---------------------------------------------------------------- phone */
 @media (max-width: 959.98px) {
-  .app { height: auto; min-height: 100dvh; overflow: visible; }
+  /* Page scrolls. The header dissolves (display: contents) so the storey bar can stick to the top of the
+     whole page instead of only within the header box. */
+  .app { --bar-h: 64px; display: block; position: relative; height: auto; min-height: 100dvh; overflow: visible; }
 
-  .hd {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-    gap: 12px 12px;
-    padding: 12px 16px;
-  }
+  .hd { display: contents; }
   .hd-ctrl { display: contents; }
+  .hd-id { padding: 12px 108px 4px 16px; }
   .hd-name { font-size: 20px; }
   .hd-addr { white-space: normal; }
-  .hd-lang { grid-column: 2; grid-row: 1; }
+  .hd-lang { position: absolute; top: 10px; right: 16px; }
+  .hd-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    height: var(--bar-h);
+    align-items: center;
+    padding: 0 16px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
   .hd-tabs {
-    grid-column: 1 / -1;
-    grid-row: 2;
     max-width: 100%;
     overflow-x: auto;
     scrollbar-width: none;
-    justify-self: start;
   }
   .hd-tabs::-webkit-scrollbar { display: none; }
 
-  .layout { display: block; padding: 0; }
+  .layout { display: block; padding: 12px 0 0; }
   .stage {
     height: 55vh;
     height: 55svh;
     min-height: 360px;
     margin: 0 12px;
+    scroll-margin-top: calc(var(--bar-h) + 8px);
   }
   .panel {
     margin-top: 12px;
@@ -433,7 +493,36 @@
     overflow: visible;
     border-bottom: 0;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    scroll-margin-top: 8px;
+    scroll-margin-top: var(--bar-h);
   }
+  .panel::after { display: none; }
   .sp { padding: 24px 16px 32px; }
+
+  /* The drawing sticks under the storey bar while the type grid, swatches and sliders scroll. */
+  .sp-figure {
+    top: var(--bar-h);
+    margin: -8px -16px 0;
+    padding: 8px 16px;
+  }
+  .sp-figure svg { max-height: 32vh; max-height: 32svh; }
+
+  /* Touch targets (≥ 40 px). */
+  .seg-btn { min-height: 40px; padding: 13px 14px; }
+  .hd-lang .seg-btn { padding: 13px 10px; min-width: 40px; }
+  .icon-btn { width: 40px; height: 40px; }
+  .swatches { gap: 12px; }
+  .swatch { width: 34px; height: 34px; }
+  .pill { height: 40px; }
+  .switch { width: 48px; height: 28px; }
+  .switch-knob { width: 20px; height: 20px; }
+  .switch[aria-checked='true'] .switch-knob { transform: translateX(20px); }
+  .back { padding: 12px 10px; }
+  .stepper { gap: 2px; }
+}
+
+@media (max-width: 479.98px) {
+  .hd-country { display: none; }
+}
+@media (max-width: 379.98px) {
+  .seg-btn { padding: 13px 10px; }
 }

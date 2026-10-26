@@ -7,9 +7,23 @@ import { CoveringIllustration } from '../illustrations/CoveringIllustration';
 import { CoveringTypeIcon } from '../illustrations/CoveringTypeIcon';
 import { prefersReducedMotion, useCovering, useStore, useT } from '../store/useStore';
 import type { Lang } from '../store/useStore';
-import { GROUPS, ORDERED_WINDOWS, chipName, shortWindowName, swatchBg, typeName, windowsIn } from './text';
+import { closeWindow, useHistorySync } from './nav';
+import { GROUPS, LEVEL_SHORT, ORDERED_WINDOWS, chipName, fullTypeName, pickerName, shortWindowName, swatchBg, windowsIn } from './text';
 
 const PHONE = '(max-width: 959.98px)';
+
+/** Live media-query match (phone layout switches a few behaviours, not just styles). */
+function useMedia(query: string) {
+  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setMatch(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, [query]);
+  return match;
+}
 
 /**
  * Right-hand panel: the overview of every window (grouped by storey → room), or, when a window is
@@ -20,12 +34,13 @@ export function SidePanel() {
   const selectedId = useStore((s) => s.selectedWindowId);
   const panelRef = useRef<HTMLElement>(null);
   const prevSelected = useRef<string | null>(null);
+  useHistorySync();
 
   // Escape returns to the overview.
   useEffect(() => {
     if (!selectedId) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !e.defaultPrevented) useStore.getState().selectWindow(null);
+      if (e.key === 'Escape' && !e.defaultPrevented) closeWindow();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -84,7 +99,7 @@ function Overview() {
           {count} {count > 1 ? t('fenêtres', 'windows') : t('fenêtre', 'window')}
         </h2>
         <p className="sp-help">
-          {t('Touchez une fenêtre sur la maquette pour choisir son habillage.', 'Tap a window on the model to choose its covering.')}
+          {t('Choisissez une fenêtre sur la maquette ou dans la liste.', 'Choose a window on the model or in the list.')}
         </p>
       </div>
 
@@ -131,7 +146,10 @@ const Row = memo(function Row({ win, lang }: { win: WindowInstance; lang: Lang }
       data-win={win.id}
       data-hot={hot || undefined}
       aria-label={`${lang === 'fr' ? win.nameFr : win.name} · ${type}`}
-      onPointerEnter={() => useStore.getState().setHovered(win.id)}
+      onPointerEnter={(e) => {
+        // Touch has no hover: a tap would otherwise leave the row (and the model window) lit.
+        if (e.pointerType === 'mouse') useStore.getState().setHovered(win.id);
+      }}
       onPointerLeave={leave}
       onFocus={() => useStore.getState().setHovered(win.id)}
       onBlur={leave}
@@ -167,11 +185,18 @@ function WindowView({ win }: { win: WindowInstance }) {
     return () => window.clearTimeout(statusTimer.current);
   }, []);
 
-  const siblings = ORDERED_WINDOWS.filter((w) => w.level === win.level);
+  const phone = useMedia(PHONE);
+  // The stepper walks the whole house (selectWindow brings the next storey forward); the count is per storey.
+  const all = ORDERED_WINDOWS;
+  const gIdx = all.findIndex((w) => w.id === win.id);
+  const siblings = all.filter((w) => w.level === win.level);
   const idx = siblings.findIndex((w) => w.id === win.id);
   const go = (d: number) => {
-    const next = siblings[(idx + d + siblings.length) % siblings.length];
+    const next = all[(gIdx + d + all.length) % all.length];
     useStore.getState().selectWindow(next.id);
+  };
+  const showOnModel = () => {
+    document.querySelector('.stage')?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
   };
 
   const s = useStore.getState;
@@ -201,11 +226,15 @@ function WindowView({ win }: { win: WindowInstance }) {
 
   const roomName = win.room ? (fr ? win.room.nameFr : win.room.name) : '';
   const levelName = fr ? LEVEL_BY_ID[win.level].nameFr : LEVEL_BY_ID[win.level].name;
+  const levelShort = LEVEL_SHORT[win.level][fr ? 0 : 1];
+  // Lead with the room the homeowner knows; the window is the detail.
+  const title = roomName || (fr ? win.nameFr : win.name);
+  const sub = roomName ? `${shortWindowName(win, lang)} · ${levelName}` : levelName;
 
   return (
     <div className="sp sp-window">
       <div className="sp-nav">
-        <button type="button" className="back" onClick={() => s().selectWindow(null)}>
+        <button type="button" className="back" onClick={closeWindow}>
           <span aria-hidden="true">←</span> {t('Toutes les fenêtres', 'All windows')}
         </button>
         <div className="stepper">
@@ -213,6 +242,7 @@ function WindowView({ win }: { win: WindowInstance }) {
             <Chevron dir={-1} />
           </button>
           <span className="stepper-n" aria-hidden="true">
+            <span className="stepper-lv">{levelShort} · </span>
             {idx + 1} / {siblings.length}
           </span>
           <button type="button" className="icon-btn" onClick={() => go(1)} aria-label={t('Fenêtre suivante', 'Next window')}>
@@ -223,9 +253,17 @@ function WindowView({ win }: { win: WindowInstance }) {
 
       <div className="sp-head">
         <h2 className="sp-wtitle" ref={headingRef} tabIndex={-1}>
-          {shortWindowName(win, lang)}
+          {title}
         </h2>
-        <p className="sp-sub">{roomName ? `${roomName} · ${levelName}` : levelName}</p>
+        {phone ? (
+          <button type="button" className="sp-sub sp-locate" onClick={showOnModel} title={t('Voir sur la maquette', 'Show on the model')}>
+            <span>{sub}</span>
+            <LocateIcon />
+            <span className="sr-only">{t(' — voir sur la maquette', ' — show on the model')}</span>
+          </button>
+        ) : (
+          <p className="sp-sub">{sub}</p>
+        )}
       </div>
 
       <div className="sp-figure">
@@ -245,12 +283,14 @@ function WindowView({ win }: { win: WindowInstance }) {
               aria-pressed={state.type === d.id}
               onClick={() => s().setCoveringType(win.id, d.id)}
             >
-              <CoveringTypeIcon type={d.id} size={24} />
-              <span>{typeName(d.id, lang)}</span>
+              <CoveringTypeIcon type={d.id} size={18} />
+              <span className="type-label">{pickerName(d.id, lang)}</span>
             </button>
           ))}
         </div>
-        <p className="field-note">{fr ? def.descriptionFr : def.description}</p>
+        <p className="field-note">
+          <strong>{fullTypeName(state.type, lang)}</strong> · {fr ? def.descriptionFr : def.description}
+        </p>
       </section>
 
       {state.type !== 'none' && (
@@ -385,6 +425,14 @@ function Chevron({ dir }: { dir: 1 | -1 }) {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={dir > 0 ? 'M6 3.5 10.5 8 6 12.5' : 'M10 3.5 5.5 8 10 12.5'} />
+    </svg>
+  );
+}
+
+function LocateIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 13V3.5M4 7l4-4 4 4" />
     </svg>
   );
 }

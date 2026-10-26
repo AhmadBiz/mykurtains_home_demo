@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { HOUSE_META } from '../data/house';
-import { LEVEL_BY_ID, WINDOW_BY_ID } from '../data/geometry';
+import { LEVEL_BY_ID } from '../data/geometry';
 import { useStore, useT } from '../store/useStore';
 import type { Lang, LevelFilter } from '../store/useStore';
-import { LEVEL_TABS } from './text';
+import { focusLevel } from './nav';
+import { LEVEL_TABS, addressParts } from './text';
 
 const SHOW_BACK = import.meta.env.BASE_URL !== '/';
 
@@ -18,14 +19,7 @@ export function Header() {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  const pickLevel = (l: LevelFilter) => {
-    const s = useStore.getState();
-    const sel = s.selectedWindowId ? WINDOW_BY_ID.get(s.selectedWindowId) : undefined;
-    // Leaving the selected window's storey returns the panel to the overview.
-    if (sel && l !== 'all' && sel.level !== l) s.selectWindow(null);
-    s.setLevelFilter(l);
-  };
-
+  const addr = addressParts(lang);
   const levelLabel = (l: LevelFilter) => (l === 'all' ? t('Tout', 'All') : lang === 'fr' ? LEVEL_BY_ID[l].nameFr : LEVEL_BY_ID[l].name);
 
   return (
@@ -37,15 +31,21 @@ export function Header() {
           </a>
         )}
         <h1 className="hd-name">{lang === 'fr' ? HOUSE_META.name : HOUSE_META.nameEn}</h1>
-        <p className="hd-addr">{HOUSE_META.address}</p>
+        <p className="hd-addr">
+          {addr.main}
+          {addr.country && <span className="hd-country">{addr.country}</span>}
+        </p>
       </div>
       <div className="hd-ctrl">
-        <div className="seg hd-tabs" role="group" aria-label={t('Étage affiché', 'Storey shown')}>
-          {LEVEL_TABS.map((l) => (
-            <button key={l} type="button" className="seg-btn" aria-pressed={levelFilter === l} onClick={() => pickLevel(l)}>
-              {levelLabel(l)}
-            </button>
-          ))}
+        {/* On phones this bar sticks to the top of the page while the model and the sheet scroll. */}
+        <div className="hd-bar">
+          <div className="seg hd-tabs" role="group" aria-label={t('Étage affiché', 'Storey shown')}>
+            {LEVEL_TABS.map((l) => (
+              <button key={l} type="button" className="seg-btn" aria-pressed={levelFilter === l} onClick={() => focusLevel(l)}>
+                {levelLabel(l)}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="seg hd-lang" role="group" aria-label={t('Langue', 'Language')}>
           {(['fr', 'en'] as Lang[]).map((l) => (

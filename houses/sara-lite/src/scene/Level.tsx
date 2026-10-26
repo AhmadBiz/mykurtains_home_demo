@@ -4,6 +4,8 @@ import { colorOption } from '../data/coverings';
 import type { WindowInstance } from '../data/geometry';
 import { paneStyle } from '../illustrations/pane';
 import { useCovering, useStore } from '../store/useStore';
+import { drapeBox, drapeStyle, hasDrape } from './drape';
+import { ALL_GAP, isTallWindow } from './model';
 import type { GlassWall, RoomLabel, SceneLevel } from './model';
 
 type Vars = CSSProperties & Record<`--${string}`, string | number>;
@@ -12,48 +14,60 @@ const r3 = (v: number) => Math.round(v * 1000) / 1000;
 // -------------------------------------------------------------------------------------------
 // Window: a real button on its glass wall, with the covering preview inside
 // -------------------------------------------------------------------------------------------
-const Win = memo(function Win({ w, wall, dim }: { w: WindowInstance; wall: GlassWall; dim: boolean }) {
+const Win = memo(function Win({ w, wall }: { w: WindowInstance; wall: GlassWall }) {
   const state = useCovering(w.id);
   const hovered = useStore((s) => s.hoveredWindowId === w.id);
   const selected = useStore((s) => s.selectedWindowId === w.id);
   const fr = useStore((s) => s.lang === 'fr');
-  const bottom = w.center.y - w.height / 2 - (wall.wall.baseY);
+  const bottom = w.center.y - w.height / 2 - wall.wall.baseY;
   const style: Vars = {
     '--wl': r3(w.opening.at - w.width / 2),
     '--wb': r3(bottom),
     '--ww': r3(w.width),
-    '--wh': r3(w.height),
+    '--wh': r3(w.height + (isTallWindow(w) ? ALL_GAP : 0)),
   };
   const leave = () => {
     if (useStore.getState().hoveredWindowId === w.id) useStore.getState().setHovered(null);
   };
+  const color = colorOption(state);
+  // Curtains and sheers hang from the ceiling track beside the opening (the drape); the pane is then bare glass.
+  const drape = hasDrape(state);
+  const box = drape ? drapeBox(w) : null;
   return (
-    <button
-      type="button"
-      className="hm-win"
-      data-wide={w.width > 1.15 ? '' : undefined}
-      data-frost={w.frosted ? '' : undefined}
-      data-hov={hovered ? '' : undefined}
-      data-sel={selected ? '' : undefined}
-      tabIndex={dim ? -1 : 0}
-      aria-label={fr ? w.nameFr : w.name}
-      aria-pressed={selected}
-      style={style}
-      onPointerEnter={() => useStore.getState().setHovered(w.id)}
-      onPointerLeave={leave}
-      onFocus={() => useStore.getState().setHovered(w.id)}
-      onBlur={leave}
-      onClick={() => useStore.getState().selectWindow(w.id)}
-    >
-      <span className="hm-pane" style={paneStyle(state, colorOption(state))} />
-    </button>
+    <>
+      {box && (
+        <span
+          className="hm-drape"
+          data-on={hovered || selected ? '' : undefined}
+          style={{ ...drapeStyle(state, color, w), '--wl': box.left, '--wb': box.bottom, '--ww': box.width, '--wh': box.height } as Vars}
+        />
+      )}
+      <button
+        type="button"
+        className="hm-win"
+        data-wide={w.width > 1.15 ? '' : undefined}
+        data-frost={w.frosted ? '' : undefined}
+        data-hov={hovered ? '' : undefined}
+        data-sel={selected ? '' : undefined}
+        tabIndex={-1}
+        aria-label={fr ? w.nameFr : w.name}
+        aria-pressed={selected}
+        style={style}
+        onPointerEnter={() => useStore.getState().setHovered(w.id)}
+        onPointerLeave={leave}
+        onClick={() => useStore.getState().selectWindow(w.id)}
+      >
+        <span className="hm-pane" style={paneStyle(drape ? { ...state, type: 'none' } : state, color)} />
+        <span className="hm-hit" />
+      </button>
+    </>
   );
 });
 
 // -------------------------------------------------------------------------------------------
 // Glass wall
 // -------------------------------------------------------------------------------------------
-function Wall({ g, dim }: { g: GlassWall; dim: boolean }) {
+function Wall({ g }: { g: GlassWall }) {
   const style: Vars = {
     '--x': r3(g.x),
     '--y': r3(g.y),
@@ -63,7 +77,7 @@ function Wall({ g, dim }: { g: GlassWall; dim: boolean }) {
     '--ry': g.ry,
   };
   return (
-    <div className="hm-wall" style={style}>
+    <div className="hm-wall" data-n={`${r3(g.out[0])},${r3(g.out[1])}`} style={style}>
       {g.doors.map((d) => (
         <span
           key={d.id}
@@ -73,7 +87,7 @@ function Wall({ g, dim }: { g: GlassWall; dim: boolean }) {
         />
       ))}
       {g.windows.map((w) => (
-        <Win key={w.id} w={w} wall={g} dim={dim} />
+        <Win key={w.id} w={w} wall={g} />
       ))}
     </div>
   );
@@ -95,7 +109,7 @@ function labelGeom(l: RoomLabel, textAngle: number, fr: boolean) {
   const fitAlt = along(alt) / est;
   const useAlt = fitMain < l.size && fitAlt > fitMain * 1.25;
   const ang = useAlt ? alt : textAngle;
-  const size = Math.max(0.2, Math.min(l.size, useAlt ? fitAlt : fitMain));
+  const size = Math.max(0.32, Math.min(l.size, useAlt ? fitAlt : fitMain));
   return { text, ang, size };
 }
 
@@ -103,8 +117,13 @@ function labelGeom(l: RoomLabel, textAngle: number, fr: boolean) {
 const CM = 100;
 const cm = (v: number) => Math.round(v * CM * 10) / 10;
 
-export const Slab = memo(function Slab({ level, showLabels, pool, fr, textAngle }: { level: SceneLevel; showLabels: boolean; pool: [number, number] | null; fr: boolean; textAngle: number }) {
+/**
+ * `room` is the plan name of the hovered / selected window's room: only that room is named on the floor (the chips
+ * already carry every room name), so the floors otherwise show the plan lines alone.
+ */
+export const Slab = memo(function Slab({ level, room, pool, fr, textAngle }: { level: SceneLevel; room: string | null; pool: [number, number] | null; fr: boolean; textAngle: number }) {
   const s = level.slab;
+  const label = room ? s.labels.find((l) => l.key === room) : undefined;
   const [x0, z0, w, d] = s.box;
   const style: Vars = { '--x': r3(x0), '--y': r3(s.y), '--z': r3(z0), '--len': r3(w), '--dep': r3(d) };
   return (
@@ -117,16 +136,16 @@ export const Slab = memo(function Slab({ level, showLabels, pool, fr, textAngle 
           {s.rails && <path className="hm-plan hm-rail" d={s.rails} />}
           <path className="hm-outline" d={s.outline} />
         </g>
-        {showLabels && (
+        {label && (
           <g className="hm-rooms">
-            {s.labels.map((l) => {
-              const g = labelGeom(l, textAngle, fr);
+            {(() => {
+              const g = labelGeom(label, textAngle, fr);
               return (
-                <text key={l.id} x={cm(l.x)} y={cm(l.z)} fontSize={cm(g.size)} transform={`rotate(${g.ang} ${cm(l.x)} ${cm(l.z)})`}>
+                <text key={label.id + g.ang} x={cm(label.x)} y={cm(label.z)} fontSize={cm(g.size)} transform={`rotate(${g.ang} ${cm(label.x)} ${cm(label.z)})`}>
                   {g.text}
                 </text>
               );
-            })}
+            })()}
           </g>
         )}
       </svg>
@@ -137,11 +156,11 @@ export const Slab = memo(function Slab({ level, showLabels, pool, fr, textAngle 
 // -------------------------------------------------------------------------------------------
 // One storey's glass walls (sorted in 3D among themselves only)
 // -------------------------------------------------------------------------------------------
-export const Walls = memo(function Walls({ level, dim }: { level: SceneLevel; dim: boolean }) {
+export const Walls = memo(function Walls({ level }: { level: SceneLevel }) {
   return (
     <>
       {level.walls.map((g) => (
-        <Wall key={g.wall.id} g={g} dim={dim} />
+        <Wall key={g.wall.id} g={g} />
       ))}
     </>
   );
