@@ -120,7 +120,7 @@ function buildSlab(level: LevelId): Slab {
   }
   const labels: RoomLabel[] = Array.from(byName.values()).map((r) => {
     const [a, b, c, d] = r.bounds;
-    return { id: r.id, name: r.name, nameFr: r.nameFr.replace(/\s*\(.*\)$/, ''), x: (a + c) / 2, z: (b + d) / 2, size: 0.26, room: r.bounds };
+    return { id: r.id, name: r.name, nameFr: r.nameFr.replace(/\s*\(.*\)$/, ''), x: (a + c) / 2, z: (b + d) / 2, size: 0.42, room: r.bounds };
   });
   return {
     box: [x0, z0, Math.max(...xs) - x0, Math.max(...zs) - z0],
@@ -132,61 +132,6 @@ function buildSlab(level: LevelId): Slab {
     labels,
   };
 }
-
-// -------------------------------------------------------------------------------------------
-// Optional faint hip roof over the upper storey: three overlapping rectangular hips.
-// -------------------------------------------------------------------------------------------
-export interface RoofPlane {
-  key: string;
-  /** Eave start (bottom-left) in scene coordinates. */
-  x: number;
-  y: number;
-  z: number;
-  length: number;
-  /** Slant height (m). */
-  slant: number;
-  /** Inset of the ridge ends from each side, as a fraction of length. */
-  inset: number;
-  ry: number;
-  /** rotateX lean (deg). */
-  rx: number;
-}
-
-const PITCH = 24; // degrees — low and quiet
-
-function hip(key: string, x0: number, z0: number, x1: number, z1: number, y: number): RoofPlane[] {
-  const run = Math.min(x1 - x0, z1 - z0) / 2;
-  const slant = run / Math.cos((PITCH * Math.PI) / 180);
-  // traverse so that (−dz, dx) points outward: (x0,z1) → (x1,z1) → (x1,z0) → (x0,z0)
-  const pts: [number, number][] = [[x0, z1], [x1, z1], [x1, z0], [x0, z0]];
-  return pts.map((a, i) => {
-    const b = pts[(i + 1) % 4];
-    const dx = b[0] - a[0];
-    const dz = b[1] - a[1];
-    const length = Math.hypot(dx, dz);
-    return {
-      key: `${key}${i}`,
-      x: a[0],
-      y,
-      z: a[1],
-      length,
-      slant,
-      inset: run / length,
-      ry: r3((Math.atan2(-dz / length, dx / length) * 180) / Math.PI),
-      rx: 90 - PITCH,
-    };
-  });
-}
-
-const FT = 0.3048;
-const UPPER_TOP = topOf('upper');
-export const ROOF: RoofPlane[] = [
-  ...hip('a', 20.5 * FT, 0, 43 * FT, 12.5 * FT, UPPER_TOP),
-  ...hip('b', 0, 12.5 * FT, 25 * FT, 33.5 * FT, UPPER_TOP),
-  ...hip('c', 4 * FT, 3 * FT, 20.5 * FT, 12.5 * FT, UPPER_TOP),
-  ...hip('d', 25 * FT, 12.5 * FT, 33.5 * FT, 20.5 * FT, UPPER_TOP),
-];
-export const ROOF_RISE = Math.tan((PITCH * Math.PI) / 180) * ((21 * FT) / 2);
 
 // -------------------------------------------------------------------------------------------
 // Everything per storey
@@ -236,7 +181,7 @@ export const HOUSE_FRAME = (() => {
   const cx = (HOUSE_BOUNDS[0] + HOUSE_BOUNDS[2]) / 2;
   const cz = (HOUSE_BOUNDS[1] + HOUSE_BOUNDS[3]) / 2;
   const pts = HOUSE.levels.flatMap((l) => l.outline);
-  return { cx, cz, radius: radiusOf(pts, cx, cz), y0: floorOf('basement'), y1: topOf('upper') + ROOF_RISE };
+  return { cx, cz, radius: radiusOf(pts, cx, cz), y0: floorOf('basement'), y1: topOf('upper') };
 })();
 
 /** Scene position of a window's centre (exploded). */

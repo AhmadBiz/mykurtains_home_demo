@@ -3,10 +3,10 @@ import { CASING } from './layout';
 import type { Layout } from './layout';
 
 /* Quiet interior palette: dim warm wall, slightly lighter painted trim, dark bronze sashes, bright daylight glass. */
-const WALL_HI = '#35312c';
-const WALL_LO = '#1d1b18';
-const TRIM = '#3d3934';
-const TRIM_HI = '#4d4842';
+const WALL_HI = '#3a3631';
+const WALL_LO = '#211e1b';
+const TRIM = '#45403a';
+const TRIM_HI = '#57514a';
 const TRIM_LO = '#2a2723';
 const FRAME = '#57524b';
 const FRAME_HI = '#6e685f';

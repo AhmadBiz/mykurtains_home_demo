@@ -3,6 +3,8 @@ import type { Layout } from './layout';
 import { clamp, lightness, shade, tones } from './color';
 
 const hair = { vectorEffect: 'non-scaling-stroke' as const, strokeWidth: 1 };
+/** Metric hairline for elements inside CSS-transformed groups (non-scaling strokes glitch there in Chromium). */
+const fine = { strokeWidth: 0.0035 };
 const WOOD_IDS = new Set(['oak', 'walnut', 'white-wood']);
 const MAX_SLATS = 120;
 
@@ -94,7 +96,7 @@ export function Venetian({ id, L, hex, accent, colorId, open, tilt, metal }: Sla
       ))}
       <g className="ci-anim" style={{ transform: tf(0, railY) }}>
         <rect x={x - 0.003} y={0} width={w + 0.006} height={0.02} rx={0.004} fill={railFill} />
-        <rect x={x - 0.003} y={0} width={w + 0.006} height={0.02} rx={0.004} fill="none" stroke="rgba(0,0,0,0.35)" {...hair} />
+        <rect x={x - 0.003} y={0} width={w + 0.006} height={0.02} rx={0.004} fill="none" stroke="rgba(0,0,0,0.35)" {...fine} />
       </g>
       {/* headrail */}
       <rect x={L.x0 + 0.004} y={L.top} width={L.ow - 0.008} height={hr} rx={0.005} fill={`url(#${grad})`} />
@@ -129,9 +131,7 @@ export function Vertical({ id, L, hex, open, tilt, metal }: SlatProps) {
       </defs>
       {Array.from({ length: n }, (_, i) => (
         <g key={i} className="ci-anim" style={{ transform: tf(left + vaneW / 2 + i * pe, 0, s, 1) }}>
-          <rect x={-vaneW / 2} y={vt} width={vaneW} height={vb - vt} fill={`url(#${grad})`} />
-          <rect x={-vaneW / 2} y={vt} width={vaneW} height={vb - vt} fill="none" stroke="rgba(0,0,0,0.22)" {...hair} />
-          <rect x={-vaneW / 2} y={vb - 0.05} width={vaneW} height={0.05} fill="rgba(0,0,0,0.08)" />
+          <rect x={-vaneW / 2} y={vt} width={vaneW} height={vb - vt} fill={`url(#${grad})`} stroke="rgba(0,0,0,0.22)" {...fine} />
         </g>
       ))}
       <rect x={left - 0.01} y={hy} width={span + 0.02} height={0.05} rx={0.006} fill="#e9e7e2" />

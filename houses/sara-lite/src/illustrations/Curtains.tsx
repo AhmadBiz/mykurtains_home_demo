@@ -59,7 +59,7 @@ function RippleLayer({ id, L, hex, open, opacity, voile, trackH }: LayerProps) {
   const deepOpacity = voile ? 0.1 + open * 0.25 : 0.12 + open * 0.55;
   const panel = (
     <>
-      <use href={`#${path}`} fill={`url(#${fold})`} stroke={t.deep} strokeOpacity={voile ? 0.25 : 0.45} strokeWidth={0.8} vectorEffect="non-scaling-stroke" />
+      <use href={`#${path}`} fill={`url(#${fold})`} />
       <use href={`#${path}`} fill={`url(#${deep})`} className="ci-anim" style={{ opacity: deepOpacity }} />
       <use href={`#${path}`} fill={`url(#${fall})`} />
     </>

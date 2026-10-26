@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react';
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { COVERING_BY_ID } from '../data/coverings';
 import type { CoveringType } from '../data/coverings';
 import { HOUSE_BOUNDS, LEVEL_BY_ID, LEVEL_ORDER, WINDOW_BY_ID } from '../data/geometry';
 import type { LevelId } from '../data/types';
 import { useStore, useT } from '../store/useStore';
 import type { LevelFilter } from '../store/useStore';
-import { angleDelta, ease, fitScale, project } from './camera';
+import { angleDelta, ease, project } from './camera';
 import type { Cam, Viewport } from './camera';
 import { convexHull, layoutChips, rectExit } from './layout';
 import type { Pt, Rect } from './layout';
 import { Level } from './Level';
-import { HOUSE_FRAME, ROOF, SCENE_LEVELS, SCENE_LEVEL_BY_ID, floorOf, windowAnchor } from './model';
+import { HOUSE_FRAME, SCENE_LEVELS, SCENE_LEVEL_BY_ID, floorOf, windowAnchor } from './model';
 import './scene.css';
 
 type Vars = CSSProperties & Record<`--${string}`, string | number>;
@@ -73,35 +73,47 @@ const HULL_POINTS: Record<LevelFilter, V3[]> = (() => {
     return l.outline.flatMap(([x, z]): V3[] => [[x, l.y0, z], [x, top, z]]);
   };
   const all = LEVEL_ORDER.flatMap(pts);
-  const up = SCENE_LEVEL_BY_ID.upper;
-  all.push([HOUSE_FRAME.cx, HOUSE_FRAME.y1, HOUSE_FRAME.cz]);
-  all.push([HOUSE_FRAME.cx, up.y1, HOUSE_FRAME.cz]);
   return { all, basement: pts('basement'), ground: pts('ground'), upper: pts('upper') };
 })();
 
-function frameFor(filter: LevelFilter, vp: Viewport, pitch: number): Frame {
+/**
+ * Framing for a filter: the px-per-metre and centre that make the projected content (at the default
+ * angle, ± a little sway) fill the stage minus room for the chips, centred. Solved numerically.
+ */
+function frameFor(filter: LevelFilter, vp: Viewport): Frame {
   const narrow = vp.w < 640;
-  if (filter === 'all') {
-    const mx = narrow ? 64 : Math.min(200, Math.max(110, vp.w * 0.15));
-    const my = narrow ? 26 : Math.max(36, vp.h * 0.06);
-    const span = HOUSE_FRAME.y1 - HOUSE_FRAME.y0;
-    return {
-      s: fitScale(HOUSE_FRAME.radius, span, pitch, vp.w - 2 * mx, vp.h - 2 * my, vp.p),
-      cx: HOUSE_FRAME.cx,
-      cy: (HOUSE_FRAME.y0 + HOUSE_FRAME.y1) / 2,
-      cz: HOUSE_FRAME.cz,
-    };
+  const all = filter === 'all';
+  const mx = narrow ? (all ? 30 : 34) : all ? Math.min(190, Math.max(110, vp.w * 0.13)) : Math.min(230, Math.max(130, vp.w * 0.17));
+  const my = narrow ? (all ? 34 : 56) : all ? Math.max(40, vp.h * 0.07) : Math.max(64, vp.h * 0.13);
+  const halfW = Math.max(40, vp.w / 2 - mx);
+  const halfH = Math.max(40, vp.h / 2 - my);
+  const pts = HULL_POINTS[filter];
+  const l = all ? null : SCENE_LEVEL_BY_ID[filter];
+  const f: Frame = l
+    ? { s: 30, cx: l.cx, cy: (l.y0 + l.y0 + LEVEL_BY_ID[l.id].ceilingHeight) / 2, cz: l.cz }
+    : { s: 30, cx: HOUSE_FRAME.cx, cy: (HOUSE_FRAME.y0 + HOUSE_FRAME.y1) / 2, cz: HOUSE_FRAME.cz };
+  const a = (YAW0 * Math.PI) / 180;
+  for (let iter = 0; iter < 5; iter++) {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const yaw of [YAW0 - 6, YAW0, YAW0 + 6]) {
+      const cam: Cam = { yaw, pitch: PITCH0, ...f };
+      for (const [x, y, z] of pts) {
+        const p = project(cam, vp, x, y, z);
+        x0 = Math.min(x0, p[0]);
+        x1 = Math.max(x1, p[0]);
+        y0 = Math.min(y0, p[1]);
+        y1 = Math.max(y1, p[1]);
+      }
+    }
+    // re-centre (screen x ↔ world (cos a, sin a) in XZ, screen y ↔ world −y), then rescale
+    const ox = (x0 + x1) / 2 - vp.w / 2;
+    const oy = (y0 + y1) / 2 - vp.h / 2;
+    f.cx += (ox / f.s) * Math.cos(a);
+    f.cz += (ox / f.s) * Math.sin(a);
+    f.cy -= oy / (f.s * Math.cos((PITCH0 * Math.PI) / 180));
+    f.s *= Math.min(halfW / ((x1 - x0) / 2), halfH / ((y1 - y0) / 2));
   }
-  const l = SCENE_LEVEL_BY_ID[filter];
-  const mx = narrow ? 44 : Math.min(230, Math.max(130, vp.w * 0.19));
-  const my = narrow ? 52 : Math.max(60, vp.h * 0.13);
-  const h = LEVEL_BY_ID[filter].ceilingHeight;
-  return {
-    s: fitScale(l.radius, h, pitch, vp.w - 2 * mx, vp.h - 2 * my, vp.p),
-    cx: l.cx,
-    cy: l.y0 + h / 2,
-    cz: l.cz,
-  };
+  return f;
 }
 
 // -------------------------------------------------------------------------------------------
@@ -253,7 +265,7 @@ export function HouseModel() {
         commit = true;
       }
     }
-    if (commit || Math.abs(m.frame.s - m.u0) / m.u0 > 1.6) {
+    if (commit) {
       // re-rasterise at the new size: --u carries the scale, the transform goes back to scale 1
       m.u0 = m.frame.s;
       root.style.setProperty('--u', `${m.u0.toFixed(3)}px`);
@@ -395,7 +407,7 @@ export function HouseModel() {
     perspRef.current?.style.setProperty('perspective', `${p}px`);
     const c = ctrlRef.current;
     m.obstacle = c ? { x0: c.offsetLeft - 4, y0: c.offsetTop - 4, x1: c.offsetLeft + c.offsetWidth + 4, y1: c.offsetTop + c.offsetHeight + 4 } : null;
-    const target = frameFor(m.filter, m.vp, PITCH0);
+    const target = frameFor(m.filter, m.vp);
     if (m.frameTween) m.frameTween.to = target;
     else {
       m.frame = target;
@@ -432,7 +444,7 @@ export function HouseModel() {
   useEffect(() => {
     if (m.filter === levelFilter) return;
     m.filter = levelFilter;
-    m.frameTween = { from: { ...m.frame }, to: frameFor(levelFilter, m.vp, PITCH0), t0: performance.now() };
+    m.frameTween = { from: { ...m.frame }, to: frameFor(levelFilter, m.vp), t0: performance.now() };
     kick();
   }, [levelFilter, m, kick]);
 
@@ -520,7 +532,7 @@ export function HouseModel() {
       kick();
     }
   };
-  const onClickCapture = (e: React.MouseEvent) => {
+  const onClickCapture = (e: ReactMouseEvent) => {
     if (m.suppressClick) {
       m.suppressClick = false;
       e.stopPropagation();
@@ -629,6 +641,15 @@ export function HouseModel() {
       onClickCapture={onClickCapture}
       onKeyDown={onKeyDown}
     >
+      <svg className="hm-defs" width="0" height="0" aria-hidden="true">
+        <defs>
+          <radialGradient id="hm-pool-grad">
+            <stop offset="0" style={{ stopColor: 'var(--accent)', stopOpacity: 0.32 }} />
+            <stop offset="0.55" style={{ stopColor: 'var(--accent)', stopOpacity: 0.1 }} />
+            <stop offset="1" style={{ stopColor: 'var(--accent)', stopOpacity: 0 }} />
+          </radialGradient>
+        </defs>
+      </svg>
       <div ref={perspRef} className="hm-persp">
         <div ref={tiltRef} className="hm-tilt">
           <div ref={worldRef} className="hm-world">
@@ -644,15 +665,6 @@ export function HouseModel() {
                 textAngle={textAngle}
               />
             ))}
-            <div className="hm-roof" data-hidden={levelFilter === 'all' ? undefined : ''} aria-hidden="true">
-              {ROOF.map((r) => (
-                <div
-                  key={r.key}
-                  className="hm-roof-p"
-                  style={{ '--x': r.x, '--y': r.y, '--z': r.z, '--len': r.length, '--ht': r.slant, '--ry': r.ry, '--rx': r.rx, '--in': `${(r.inset * 100).toFixed(2)}%` } as Vars}
-                />
-              ))}
-            </div>
           </div>
         </div>
       </div>

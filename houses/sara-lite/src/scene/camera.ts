@@ -45,17 +45,6 @@ export function project(cam: Cam, vp: Viewport, x: number, y: number, z: number)
   return [vp.w / 2 + x1 * f, vp.h / 2 + y2 * f, z2];
 }
 
-/** px-per-metre that fits a footprint of radius R (m) and a vertical span (m) in a box, perspective included. */
-export function fitScale(radius: number, span: number, pitch: number, availW: number, availH: number, persp: number): number {
-  const b = Math.abs(pitch) * D2R;
-  const halfW = radius;
-  const halfH = (span / 2) * Math.cos(b) + radius * Math.sin(b);
-  // s·half / (1 − s·radius/P) = avail/2  →  s = A / (half + A·radius/P)
-  const sw = availW / 2 / (halfW + ((availW / 2) * radius) / persp);
-  const sh = availH / 2 / (halfH + ((availH / 2) * radius) / persp);
-  return Math.max(4, Math.min(sw, sh));
-}
-
 /** CSS cubic-bezier(0.2, 0.7, 0.2, 1) — the page's --ease — evaluated at t ∈ [0, 1]. */
 export function ease(t: number): number {
   if (t <= 0) return 0;

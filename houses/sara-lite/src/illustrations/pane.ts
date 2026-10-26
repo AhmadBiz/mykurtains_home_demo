@@ -3,7 +3,7 @@ import type { ColorOption, WindowCoveringState } from '../data/coverings';
 import { clamp, rgba, shade, tones } from './color';
 
 /** Faint daylight on the dark glass of the model. */
-const SKY = 'linear-gradient(170deg, rgba(185,210,228,0.20), rgba(185,210,228,0.06) 58%, rgba(150,185,140,0.10))';
+const SKY = 'linear-gradient(170deg, rgba(185,210,228,0.26), rgba(185,210,228,0.09) 58%, rgba(150,185,140,0.14))';
 
 const pc = (v: number) => `${Math.round(v * 1000) / 10}%`;
 
@@ -16,7 +16,7 @@ export function paneStyle(state: WindowCoveringState, color: ColorOption): CSSPr
   const t = tones(hex, 0.9);
   const open = clamp(state.open, 0, 1);
   const tilt = Math.abs(clamp(state.tilt, -1, 1));
-  const solid = 1 - (color.translucency ?? 0) * 0.8;
+  const solid = 1 - (color.translucency ?? 0) * 0.5;
   const c = (a: number) => rgba(hex, a * solid);
   const layers: string[] = [];
 
@@ -26,7 +26,7 @@ export function paneStyle(state: WindowCoveringState, color: ColorOption): CSSPr
     case 'curtains':
     case 'sheers': {
       const voile = state.type === 'sheers';
-      const a = voile ? 0.55 : 0.94;
+      const a = voile ? 0.8 : 0.94;
       // Each side covers half of (1 − open), plus a sliver for the stack at the frame.
       const side = Math.max(0.07, ((1 - open) / 2) * 1.02);
       const folds = `repeating-linear-gradient(90deg, ${rgba(t.lo, a * solid)} 0 1px, ${c(a)} 1px 2.5px, ${rgba(t.hi, a * solid)} 2.5px 4px, ${c(a)} 4px 5px)`;
@@ -49,11 +49,11 @@ export function paneStyle(state: WindowCoveringState, color: ColorOption): CSSPr
     }
     case 'venetian': {
       const drop = Math.max(0.06, 1 - open);
-      // Slat fraction of the 3 px pitch follows the tilt: thin lines when open, solid when closed.
-      const f = 0.25 + 0.75 * tilt;
-      const s = `${(3 * f).toFixed(2)}px`;
+      // Slat fraction of the 4 px pitch follows the tilt: thin lines when open, nearly solid when closed.
+      const f = 0.25 + 0.55 * tilt;
+      const s = `${(4 * f).toFixed(2)}px`;
       layers.push(
-        `repeating-linear-gradient(180deg, ${rgba(t.hi, 0.95)} 0 ${s}, ${rgba(shade(hex, -0.35), 0.35 + 0.5 * tilt)} ${s} 3px) left top / 100% ${pc(drop)} no-repeat`,
+        `repeating-linear-gradient(180deg, ${rgba(t.hi, 0.95)} 0 ${s}, ${rgba(shade(hex, -0.35), 0.35 + 0.5 * tilt)} ${s} 4px) left top / 100% ${pc(drop)} no-repeat`,
       );
       break;
     }

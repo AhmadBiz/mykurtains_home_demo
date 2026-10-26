@@ -95,7 +95,7 @@ function labelGeom(l: RoomLabel, textAngle: number, fr: boolean) {
   const fitAlt = along(alt) / est;
   const useAlt = fitMain < l.size && fitAlt > fitMain * 1.25;
   const ang = useAlt ? alt : textAngle;
-  const size = Math.max(0.13, Math.min(l.size, useAlt ? fitAlt : fitMain));
+  const size = Math.max(0.2, Math.min(l.size, useAlt ? fitAlt : fitMain));
   return { text, ang, size };
 }
 

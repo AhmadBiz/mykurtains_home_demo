@@ -4,6 +4,8 @@ import { tones } from './color';
 import { SlatGradient } from './Slats';
 
 const hair = { vectorEffect: 'non-scaling-stroke' as const, strokeWidth: 1 };
+/** Metric hairline for elements inside CSS-transformed groups (non-scaling strokes glitch there in Chromium). */
+const fine = { strokeWidth: 0.0035 };
 const LOUVRE = 0.089;
 /** Panels swing up to this angle (radians) when fully open: they rest foreshortened against the side walls. */
 const MAX_SWING = (80 * Math.PI) / 180;
@@ -60,7 +62,7 @@ function Panel({ pw, ph, louvre, frame, edge, s, rod }: {
         fill={frame}
         fillRule="evenodd"
         stroke={edge}
-        {...hair}
+        {...fine}
       />
     </>
   );

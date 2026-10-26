@@ -3,6 +3,8 @@ import type { Layout } from './layout';
 import { clamp, lightness, shade, tones } from './color';
 
 const hair = { vectorEffect: 'non-scaling-stroke' as const, strokeWidth: 1 };
+/** Metric hairline for elements inside CSS-transformed groups (non-scaling strokes glitch there in Chromium). */
+const fine = { strokeWidth: 0.0035 };
 
 interface ShadeProps {
   id: string;
@@ -45,11 +47,11 @@ export function Roller({ id, L, hex, open, translucency }: ShadeProps) {
         </linearGradient>
       </defs>
       <g className="ci-anim" style={{ transform: tf(x, y0, 1, d) }}>
-        <rect x={0} y={0} width={w} height={len} fill={`url(#${id}-fab)`} opacity={1 - translucency * 0.75} />
+        <rect x={0} y={0} width={w} height={len} fill={`url(#${id}-fab)`} opacity={1 - translucency * 0.6} />
       </g>
       <g className="ci-anim" style={{ transform: tf(0, y0 + d * len) }}>
         <rect x={x - 0.004} y={-0.022} width={w + 0.008} height={0.022} rx={0.004} fill={`url(#${id}-cas)`} />
-        <line x1={x - 0.004} x2={x + w + 0.004} y1={0} y2={0} stroke="rgba(0,0,0,0.4)" {...hair} />
+        <line x1={x - 0.004} x2={x + w + 0.004} y1={0} y2={0} stroke="rgba(0,0,0,0.4)" {...fine} />
       </g>
       {/* bead chain loop */}
       <path
@@ -78,7 +80,7 @@ export function Cellular({ id, L, hex, open, translucency }: ShadeProps) {
   const s = m + (1 - m) * (1 - open);
   const t = tones(hex, 0.6);
   const rail = railFill(hex);
-  const pleat = 0.022;
+  const pleat = 0.032;
   return (
     <g>
       <defs>
@@ -102,14 +104,14 @@ export function Cellular({ id, L, hex, open, translucency }: ShadeProps) {
         </linearGradient>
       </defs>
       <g className="ci-anim" style={{ transform: tf(x, y0, 1, s) }}>
-        <g opacity={1 - translucency * 0.7}>
+        <g opacity={1 - translucency * 0.5}>
           <rect x={0} y={0} width={w} height={len} fill={`url(#${id}-pl)`} />
           <rect x={0} y={0} width={w} height={len} fill={`url(#${id}-edge)`} />
         </g>
       </g>
       <g className="ci-anim" style={{ transform: tf(0, y0 + s * len) }}>
         <rect x={x} y={-0.02} width={w} height={0.02} rx={0.005} fill={`url(#${id}-rail)`} />
-        <line x1={x} x2={x + w} y1={0} y2={0} stroke="rgba(0,0,0,0.35)" {...hair} />
+        <line x1={x} x2={x + w} y1={0} y2={0} stroke="rgba(0,0,0,0.35)" {...fine} />
       </g>
       <rect x={L.x0 + 0.004} y={L.top} width={L.ow - 0.008} height={hr} rx={0.006} fill={`url(#${id}-rail)`} />
       <line x1={L.x0 + 0.004} x2={L.x1 - 0.004} y1={L.top + hr} y2={L.top + hr} stroke="rgba(0,0,0,0.35)" {...hair} />
@@ -125,8 +127,8 @@ export function Roman({ id, L, hex, accent, open }: ShadeProps) {
   const y0 = L.top + hr;
   const len = L.oh - hr - 0.006;
   const step = 0.2;
-  const foldH = 0.068;
-  const foldStep = 0.046;
+  const foldH = 0.085;
+  const foldStep = 0.052;
   const raised = open * len;
   const flat = len - raised;
   const kf = raised / step;
@@ -140,15 +142,16 @@ export function Roman({ id, L, hex, accent, open }: ShadeProps) {
         <linearGradient id={`${id}-seam`} gradientUnits="userSpaceOnUse" x1={0} y1={0} x2={0} y2={step} spreadMethod="repeat">
           <stop offset="0" stopColor={t.hi} />
           <stop offset="0.5" stopColor={hex} />
-          <stop offset="0.88" stopColor={hex} />
-          <stop offset="0.97" stopColor={t.lo} />
-          <stop offset="1" stopColor={t.deep} />
+          <stop offset="0.8" stopColor={hex} />
+          <stop offset="0.96" stopColor={t.lo} />
+          <stop offset="1" stopColor={t.lo} />
         </linearGradient>
         <linearGradient id={`${id}-fold`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={shade(hex, 0.12)} />
-          <stop offset="0.35" stopColor={t.hi} />
-          <stop offset="0.75" stopColor={hex} />
-          <stop offset="1" stopColor={t.lo} />
+          <stop offset="0" stopColor={t.lo} />
+          <stop offset="0.12" stopColor={shade(hex, 0.12)} />
+          <stop offset="0.4" stopColor={t.hi} />
+          <stop offset="0.72" stopColor={hex} />
+          <stop offset="1" stopColor={t.deep} />
         </linearGradient>
         <linearGradient id={`${id}-side`} x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stopColor="#000" stopOpacity="0.16" />
@@ -174,7 +177,7 @@ export function Roman({ id, L, hex, accent, open }: ShadeProps) {
         </g>
         {Array.from({ length: maxF }, (_, i) => (
           <g key={i} className="ci-anim" style={{ transform: tf(0, flat + i * foldStep - 0.012), opacity: clamp(kf - i, 0, 1) }}>
-            <rect x={-0.004} y={0} width={w + 0.008} height={foldH} rx={0.026} fill={`url(#${id}-fold)`} stroke={t.deep} strokeOpacity={0.55} {...hair} />
+            <rect x={-0.004} y={0} width={w + 0.008} height={foldH} rx={0.026} fill={`url(#${id}-fold)`} stroke={t.deep} strokeOpacity={0.55} {...fine} />
             {accent && <rect x={-0.004} y={0} width={w + 0.008} height={foldH} rx={0.026} fill={`url(#${stripes})`} />}
           </g>
         ))}
