@@ -10,8 +10,11 @@ const pc = (v: number) => `${Math.round(v * 1000) / 10}%`;
 /**
  * Style for the tiny pane (30–110 px) on each window of the glass model: CSS gradients only, hinting the covering in
  * its colour and state. Layers are listed top-first; the last one is the glass.
+ *
+ * `mirror`: the pane's CSS left is the room's right (the wall's normal points away from the room), so a vertical
+ * blind, which stacks on the left as seen from inside, is anchored at the CSS right.
  */
-export function paneStyle(state: WindowCoveringState, color: ColorOption): CSSProperties {
+export function paneStyle(state: WindowCoveringState, color: ColorOption, mirror = false): CSSProperties {
   const hex = color.hex;
   const t = tones(hex, 0.9);
   const open = clamp(state.open, 0, 1);
@@ -62,7 +65,7 @@ export function paneStyle(state: WindowCoveringState, color: ColorOption): CSSPr
       const f = 0.25 + 0.75 * tilt * (1 - open) + 0.2 * open;
       const s = `${(4 * Math.min(1, f)).toFixed(2)}px`;
       layers.push(
-        `repeating-linear-gradient(90deg, ${rgba(t.hi, 0.95)} 0 ${s}, ${rgba(shade(hex, -0.3), 0.3 + 0.4 * tilt)} ${s} 4px) left top / ${pc(cover)} 100% no-repeat`,
+        `repeating-linear-gradient(90deg, ${rgba(t.hi, 0.95)} 0 ${s}, ${rgba(shade(hex, -0.3), 0.3 + 0.4 * tilt)} ${s} 4px) ${mirror ? 'right' : 'left'} top / ${pc(cover)} 100% no-repeat`,
       );
       break;
     }

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { CASING } from './layout';
+import { CASING, ROOM_BLEED } from './layout';
 import type { Layout } from './layout';
 
 /* Quiet interior palette: dim warm wall, slightly lighter painted trim, dark bronze sashes, bright daylight glass. */
@@ -12,6 +12,10 @@ const FRAME = '#57524b';
 const FRAME_HI = '#6e685f';
 const HAIR = 'rgba(245,243,240,0.10)';
 const SHADOW = 'rgba(0,0,0,0.35)';
+/** Floor and ceiling planes, seen only when a drawing spills past them. */
+const FLOOR_HI = '#1d1a17';
+const FLOOR_LO = '#141210';
+const CEILING = '#2c2925';
 
 const hair = { vectorEffect: 'non-scaling-stroke' as const, strokeWidth: 1 };
 
@@ -55,14 +59,20 @@ function muntins(L: Layout, ps: { x: number; y: number; w: number; h: number }[]
 
 /** Defs for the room: wall falloff, outdoor glass, sheen. */
 export function RoomDefs({ id, L }: { id: string; L: Layout }) {
-  const cx = (L.x0 + L.ow / 2) / L.W;
-  const cy = (L.top + L.oh / 2) / L.H;
+  // Soft light falloff centred on the window, in metres, so it holds however the drawing is cropped.
+  const cx = L.x0 + L.ow / 2;
+  const cy = L.top + L.oh / 2;
+  const r = Math.max(2.2, L.oh * 0.9 + 1.2);
   return (
     <>
-      <radialGradient id={`${id}-wall`} cx={cx} cy={cy} r={0.85} gradientTransform={`translate(${cx} ${cy}) scale(1 ${L.W / L.H}) translate(${-cx} ${-cy})`}>
+      <radialGradient id={`${id}-wall`} gradientUnits="userSpaceOnUse" cx={cx} cy={cy} r={r}>
         <stop offset="0" stopColor={WALL_HI} />
         <stop offset="1" stopColor={WALL_LO} />
       </radialGradient>
+      <linearGradient id={`${id}-floor`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor={FLOOR_HI} />
+        <stop offset="1" stopColor={FLOOR_LO} />
+      </linearGradient>
       <linearGradient id={`${id}-glass`} x1="0" y1="0" x2="0" y2="1">
         {L.frosted ? (
           <>
@@ -101,22 +111,27 @@ export function RoomDefs({ id, L }: { id: string; L: Layout }) {
 
 /** Wall, crown, baseboard, casing, sashes, glass and stool. Static for a given window. */
 export const Room = memo(function Room({ id, L }: { id: string; L: Layout }) {
-  const { W, H, x0, x1, ow, top, bot, oh } = L;
+  const { H, x0, x1, ow, top, bot, oh } = L;
   const ps = panes(L);
   const frameD = rectPath(x0, top, ow, oh) + ps.map((p) => rectPath(p.x, p.y, p.w, p.h)).join('');
   const mun = muntins(L, ps);
   const stoolY = bot;
+  // Wall, crown and baseboard run past the drawing's box: the visible part is chosen by the viewBox.
+  const bx = -ROOM_BLEED;
+  const bw = L.W + 2 * ROOM_BLEED;
   return (
     <g>
-      <rect x={0} y={0} width={W} height={H} fill={`url(#${id}-wall)`} />
+      <rect x={bx} y={-ROOM_BLEED} width={bw} height={ROOM_BLEED} fill={CEILING} />
+      <rect x={bx} y={0} width={bw} height={H} fill={`url(#${id}-wall)`} />
+      <rect x={bx} y={H} width={bw} height={ROOM_BLEED} fill={`url(#${id}-floor)`} />
       {/* crown */}
-      <rect x={0} y={0} width={W} height={0.05} fill={`url(#${id}-trim)`} />
-      <rect x={0} y={0.05} width={W} height={0.014} fill={SHADOW} opacity={0.5} />
-      <line x1={0} x2={W} y1={0.05} y2={0.05} stroke={HAIR} {...hair} />
+      <rect x={bx} y={0} width={bw} height={0.05} fill={`url(#${id}-trim)`} />
+      <rect x={bx} y={0.05} width={bw} height={0.014} fill={SHADOW} opacity={0.5} />
+      <line x1={bx} x2={bx + bw} y1={0.05} y2={0.05} stroke={HAIR} {...hair} />
       {/* baseboard */}
-      <rect x={0} y={H - 0.1} width={W} height={0.1} fill={TRIM} />
-      <rect x={0} y={H - 0.1} width={W} height={0.012} fill={TRIM_HI} />
-      <line x1={0} x2={W} y1={H - 0.1} y2={H - 0.1} stroke={HAIR} {...hair} />
+      <rect x={bx} y={H - 0.1} width={bw} height={0.1} fill={TRIM} />
+      <rect x={bx} y={H - 0.1} width={bw} height={0.012} fill={TRIM_HI} />
+      <line x1={bx} x2={bx + bw} y1={H - 0.1} y2={H - 0.1} stroke={HAIR} {...hair} />
       {/* casing */}
       <rect x={x0 - CASING - 0.012} y={top - CASING - 0.012} width={ow + 2 * CASING + 0.024} height={(L.isDoor ? H : bot) - top + CASING + 0.012} fill={SHADOW} opacity={0.35} />
       <rect x={x0 - CASING} y={top - CASING} width={ow + 2 * CASING} height={(L.isDoor ? H : bot) - top + CASING} fill={`url(#${id}-trim)`} />
@@ -150,7 +165,94 @@ export const Room = memo(function Room({ id, L }: { id: string; L: Layout }) {
         </>
       )}
       {/* floor line */}
-      <line x1={0} x2={W} y1={H - 0.001} y2={H - 0.001} stroke="rgba(245,243,240,0.14)" {...hair} />
+      <line x1={bx} x2={bx + bw} y1={H - 0.001} y2={H - 0.001} stroke="rgba(245,243,240,0.14)" {...hair} />
+    </g>
+  );
+});
+
+/* Fixtures under windows whose curtains stop short of the floor: quiet silhouettes, so the short hem reads as intended. */
+const BODY = '#3f3b36';
+const BODY_LO = '#2f2c28';
+const CHROME = '#77726a';
+const RISE = 0.19;
+const RUN = 0.267;
+
+/** A gooseneck spout (front view, slightly turned) from its base up to `topY`. */
+function Gooseneck({ x, baseY, topY }: { x: number; baseY: number; topY: number }) {
+  const rad = Math.min(0.06, Math.max(0.03, (baseY - topY) * 0.25));
+  const sx = x - rad;
+  const d = `M${sx} ${baseY}V${topY + rad}A${rad} ${rad} 0 0 1 ${sx + 2 * rad} ${topY + rad}v${Math.min(0.07, rad * 1.2)}`;
+  return (
+    <g>
+      <rect x={sx - 0.03} y={baseY - 0.012} width={0.06} height={0.012} rx={0.004} fill={CHROME} />
+      <path d={d} fill="none" stroke={CHROME} strokeWidth={0.022} strokeLinecap="round" />
+      <path d={d} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={1} vectorEffect="non-scaling-stroke" transform="translate(-0.005 0)" />
+      <path d={`M${sx + 0.012} ${baseY - 0.07}l0.06 -0.025`} stroke={CHROME} strokeWidth={0.012} strokeLinecap="round" />
+    </g>
+  );
+}
+
+/** Counter + faucet, tub, or stair flight under the window. Drawn in front of the covering. */
+export const Fixture = memo(function Fixture({ L }: { L: Layout }) {
+  if (!L.obstacle || L.hemAbove <= 0) return null;
+  const { H } = L;
+  const cx = L.x0 + L.ow / 2;
+  const bx = -ROOM_BLEED;
+  const bw = L.W + 2 * ROOM_BLEED;
+  if (L.obstacle === 'counter') {
+    const top = H - 0.91;
+    const kick = 0.1;
+    let joints = '';
+    for (let k = -12; k <= 12; k++) {
+      const x = cx + 0.3 + k * 0.6;
+      if (x > bx && x < bx + bw) joints += `M${x} ${top + 0.04}V${H - kick}`;
+    }
+    return (
+      <g>
+        <rect x={bx} y={top + 0.04} width={bw} height={H - kick - top - 0.04} fill={BODY} />
+        <rect x={bx} y={H - kick} width={bw} height={kick} fill={BODY_LO} />
+        <path d={joints} stroke={HAIR} {...hair} />
+        <path d={joints} stroke="rgba(0,0,0,0.3)" {...hair} transform="translate(0.004 0)" />
+        <rect x={bx} y={top} width={bw} height={0.04} fill={TRIM_HI} />
+        <line x1={bx} x2={bx + bw} y1={top} y2={top} stroke="rgba(245,243,240,0.2)" {...hair} />
+        <rect x={bx} y={top + 0.04} width={bw} height={0.01} fill={SHADOW} opacity={0.6} />
+        <Gooseneck x={cx} baseY={top} topY={H - (L.hemAbove - 0.03)} />
+      </g>
+    );
+  }
+  if (L.obstacle === 'tub') {
+    const rim = H - 0.56;
+    const tw = Math.max(1.52, L.ow + 0.4);
+    const tx = cx - tw / 2;
+    return (
+      <g>
+        <rect x={tx} y={rim + 0.04} width={tw} height={H - rim - 0.04} fill={BODY} />
+        <rect x={tx} y={rim + 0.04} width={tw} height={0.012} fill={SHADOW} opacity={0.6} />
+        <rect x={tx - 0.015} y={rim} width={tw + 0.03} height={0.045} rx={0.02} fill={TRIM_HI} />
+        <line x1={tx} x2={tx + tw} y1={rim} y2={rim} stroke="rgba(245,243,240,0.2)" {...hair} />
+        <rect x={tx} y={rim} width={tw} height={H - rim} fill="none" stroke={HAIR} {...hair} />
+        {L.hemAbove > 0.75 && <Gooseneck x={cx} baseY={rim} topY={H - (L.hemAbove - 0.03)} />}
+      </g>
+    );
+  }
+  // Stairs: the landing at hemAbove under the left of the window, the flight stepping down to the right.
+  const land = H - L.hemAbove;
+  const n = Math.max(1, Math.round(L.hemAbove / RISE));
+  const rise = L.hemAbove / n;
+  let d = `M${bx} ${H}V${land}H${L.x0}`;
+  let nos = `M${bx} ${land}H${L.x0 + 0.03}`;
+  for (let k = 1; k < n; k++) {
+    const x = L.x0 + k * RUN;
+    const y = land + k * rise;
+    d += `V${y}H${x}`;
+    nos += `M${x - RUN} ${y}H${x + 0.03}`;
+  }
+  d += `V${H}Z`;
+  return (
+    <g>
+      <path d={d} fill={BODY} />
+      <path d={nos} stroke={TRIM_HI} strokeWidth={0.025} />
+      <path d={d} fill="none" stroke={HAIR} {...hair} />
     </g>
   );
 });
