@@ -15,7 +15,7 @@
  *     bar. UVs are metric (continuous around the bend, metric on the roll too). Two fabrics:
  *       · screen / light-filtering colours are a woven sheet: the linen normal / roughness maps
  *         at a 0.45 m tile (offset per blind so neighbouring windows never show the same seam),
- *         55 % opaque so the garden reads THROUGH it rather than reflected in it, with only a
+ *         85 % opaque: the sheet reads as white fabric with the daylight glowing through it, not as frosted glass, with only a
  *         faint, very rough sheen;
  *       · blackout / opaque colours are a PVC-coated sheet: the weave normal all but off, a plain
  *         roughness of 0.75, no sheen.
@@ -100,9 +100,9 @@ const EXIT_DROP = 0.002;
 /** The weave tiles every 0.45 m (UVs are metric): big enough that its seams never form a lattice across a sheet. */
 const WEAVE_TILE = 0.45;
 const WEAVE_REPEAT: [number, number] = [1 / WEAVE_TILE, 1 / WEAVE_TILE];
-/** Screen / light-filtering sheet: woven, 55 % opaque, a faint very rough sheen. */
+/** Screen / light-filtering sheet: woven, 85 % opaque, a faint very rough sheen. */
 const SCREEN_NORMAL = 0.6;
-const SCREEN_OPACITY = 0.55;
+const SCREEN_OPACITY = 0.85;
 /** Blackout sheet: PVC-coated, the weave barely there under the coating, plain roughness, no sheen. */
 const COATED_NORMAL = 0.15;
 const COATED_ROUGHNESS = 0.75;

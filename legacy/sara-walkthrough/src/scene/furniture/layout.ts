@@ -288,7 +288,9 @@ function bedroom4(f: Frame): void {
   P.bed(f.at(bx, 0, z2 - IN - 1.0, N), { w: 1.4, l: 2.0, frame: 'oak', duvet: 'fabricNavy', throw: 'velvetMustard', headboard: 'fabricGrey' });
   P.nightstand(f.at(x1 + IN + 0.175, 0, z2 - IN - 0.25, N), 'oak', 0.35);
   P.nightstand(f.at(x2 - IN - 0.4, 0, z2 - IN - 0.25, N), 'oak', 0.4);
-  P.wardrobe(f.at(x1 + 0.9, 0, z1 + IN + 0.3, S), 1.2, 2.0, 0.6, 'paintWhite');
+  // Wardrobe 1.25 m from the west wall (X 0.65–1.85): nearer, it stood in the north stack of w-ch4-w's
+  // floor-length curtain; it stays west of the door leaf (X ≈ 2.1).
+  P.wardrobe(f.at(x1 + 1.25, 0, z1 + IN + 0.3, S), 1.2, 2.0, 0.6, 'paintWhite');
   P.rug(f.at(bx, 0, z2 - 2.1), 1.8, 1.2, 'rugSage');
   P.picture(f.at(bx, 0, z2 - INT_FACE, N), 0.8, 0.5, 1.6, 'art3');
 }

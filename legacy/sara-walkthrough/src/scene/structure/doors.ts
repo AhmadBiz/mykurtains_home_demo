@@ -42,6 +42,12 @@ const RECESS = 0.01;
 const BEVEL = 0.014;
 const HANDLE_Y = 1.0;
 const OPEN_ANGLE = (95 * Math.PI) / 180;
+/**
+ * Per-door open angle (radians) where the default 95° does not suit. A closed leaf (0) sits centred
+ * in the wall thickness. d-walkin1: the master walk-in is a narrow aisle between two hanging rods;
+ * an open leaf stands across its only view of the window, so its door is shown closed.
+ */
+const OPEN_ANGLE_BY_DOOR: Record<string, number> = { 'd-walkin1': 0 };
 const CIRCULATION = /hall|corridor|vestibule|garage/;
 
 type Matrix = THREE.Matrix4;
@@ -78,8 +84,8 @@ function addCasing(set: BucketSet, s: number, e: number, y0: number, H: number, 
  * Frame of an open leaf: origin at the hinge (bottom), local +X from the hinge to the free edge.
  * `dirSign` is the closed leaf's direction along the wall (+1 = toward b), `sigma` the swing side (local ±Z).
  */
-function leafMatrix(M: Matrix, hingeX: number, y0: number, hingeZ: number, dirSign: 1 | -1, sigma: 1 | -1): Matrix {
-  const phi = Math.atan2(-sigma * Math.sin(OPEN_ANGLE), dirSign * Math.cos(OPEN_ANGLE));
+function leafMatrix(M: Matrix, hingeX: number, y0: number, hingeZ: number, dirSign: 1 | -1, sigma: 1 | -1, angle = OPEN_ANGLE): Matrix {
+  const phi = Math.atan2(-sigma * Math.sin(angle), dirSign * Math.cos(angle));
   return M.clone().multiply(new THREE.Matrix4().makeRotationY(phi).setPosition(hingeX, y0 + GAP, hingeZ));
 }
 
@@ -322,7 +328,9 @@ export function addDoors(sets: Record<LevelId, BucketSet>): void {
         break;
       case 'door': {
         const sigma = swingSide(wall, g, px, pz);
-        addPanelLeaf(set, lw, lh, leafMatrix(M, hingeX, y0, sigma * (t / 2 - 0.01), dirSign, sigma));
+        const angle = OPEN_ANGLE_BY_DOOR[o.id] ?? OPEN_ANGLE;
+        const hingeZ = angle > 0 ? sigma * (t / 2 - 0.01) : 0;
+        addPanelLeaf(set, lw, lh, leafMatrix(M, hingeX, y0, hingeZ, dirSign, sigma, angle));
         break;
       }
       case 'exteriorDoor': {
