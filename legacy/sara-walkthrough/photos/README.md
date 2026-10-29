@@ -50,24 +50,37 @@ node scripts/photos.mjs --draft                 # all shots, composition check �
 node scripts/photos.mjs --draft --only salon-01 # just one
 node scripts/photos.mjs --only salon-01,cuisine-01   # final → photos/<id>.jpg
 node scripts/photos.mjs --port 4412             # another free port (4400–4499) if 4410 is busy
-node scripts/photos.mjs --build                 # force a rebuild of dist-photos/
+node scripts/photos.mjs --build                 # force a rebuild of dist-photos-<port>/
 ```
 
 * **Draft**: 1200×800 canvas at dpr 1, JPEG q85, in `photos/drafts/`. Use it to frame the shot.
 * **Final**: 1500×1000 canvas at dpr 2 (`?dpr=2` → a 3000×2000 render, AO at full resolution with
   64 samples), downscaled with Lanczos to **1800×1200**, JPEG q88 (4:4:4), in `photos/`.
-* The script builds the app into `dist-photos/` when it is missing or older than `src/` / `public/`
-  (it never touches `dist/`), serves it with `vite preview --strictPort`, renders each shot, prints
-  the time per shot, and exits 1 on any page error, WebGL context loss or failed shot.
-* Only the WebGL canvas is captured (read in the same animation frame it was drawn), after two
-  consecutive identical frames — no HUD, no half-applied state.
+* The script builds the app into `dist-photos-<port>/` when it is missing or older than `src/` /
+  `public/` (it never touches `dist/`), serves it with `vite preview --strictPort`, renders each
+  shot, prints the time per shot, and exits 1 on any page error, WebGL context loss or failed shot.
+* In photo mode the app renders only on request (`__house.renderFrame()`, R3F `frameloop="never"`):
+  the script renders frames one by one until two consecutive frames are identical, and reads that
+  frame from the WebGL canvas in the same task — only the canvas (no HUD), never a half-applied state.
+* Two runs at once need two ports (`--port`); they share the 4 CPU cores, so they are not faster.
 
 ### How long it takes here (4-core container, SwiftShader software WebGL)
 
-TIMINGS_PLACEHOLDER
+Measured on living-room test shots (October 2026), nothing else running:
+
+| Step | Draft (1200×800) | Final (3000×2000 → 1800×1200) |
+|---|---|---|
+| build (only when `src/` changed) | ~4 s | ~4 s |
+| app load (HDRI, textures, scene graph) | ~70 s | ~70 s |
+| first shot (includes compiling every shader) | ~100 s | ~290 s |
+| each further shot (2 frames + encode) | **~45–50 s** | **~3.8–4 min** |
+
+So 20 finals ≈ 80 minutes. Frame time is dominated by the per-pixel shading (37 interior point
+lights, PBR, 64-sample AO), so it scales with the pixel count; a frame that still differs from the
+previous one costs one more frame (the log prints the time of each frame, `Δ` = it changed).
+Always draft first: a composition mistake costs 45 s, not 4 minutes.
 
 Render several shots per invocation: the start-up (shader compilation, texture upload) is paid once.
-Two renders at the same time on this machine only slow each other down (CPU-bound).
 
 ## 3. Photographer's notes
 

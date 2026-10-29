@@ -113,7 +113,7 @@ function ensureBuild() {
   if (!FORCE_BUILD && !stale) return;
   const t0 = Date.now();
   console.log(`building into ${OUT_DIR.slice(ROOT.length + 1)}/ (${FORCE_BUILD ? 'forced' : existsSync(index) ? 'sources changed' : 'missing'})…`);
-  const r = spawnSync('npx', ['vite', 'build', '--outDir', OUT_DIR, '--emptyOutDir', '--logLevel', 'warn'], { cwd: ROOT, stdio: 'inherit' });
+  const r = spawnSync('npx', ['vite', 'build', '--outDir', OUT_DIR, '--emptyOutDir', '--logLevel', 'error'], { cwd: ROOT, stdio: 'inherit' });
   if (r.status !== 0) throw new Error('vite build failed');
   console.log(`  built in ${secs(t0)} s`);
 }
