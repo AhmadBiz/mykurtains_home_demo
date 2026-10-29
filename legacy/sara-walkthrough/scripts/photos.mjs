@@ -221,13 +221,6 @@ async function main() {
     page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
 
     const api = (fn, ...args) => page.evaluate(([f, a]) => new Function('a', `return (${f})(window.__house, ...a)`)(a), [fn, args]);
-    const frameCount = () => page.evaluate(() => window.__house?.frames ?? 0);
-    /** Resolves after `n` frames have actually been rendered by R3F. */
-    const renderedFrames = async (n) => {
-      const start = await frameCount();
-      await page.waitForFunction((target) => (window.__house?.frames ?? 0) >= target, start + n, { timeout: OP_TIMEOUT, polling: 100 });
-    };
-
     /**
      * Runs in the page, in the animation frame right AFTER R3F's render (R3F re-queues its loop first
      * thing, so a callback queued now runs after it in the same frame, before the buffer is presented):
@@ -276,13 +269,13 @@ async function main() {
     await page.waitForFunction(
       () => {
         const h = window.__house;
-        return !!h?.scene && h.scene.children.length > 5 && (h.frames ?? 0) > 2;
+        return !!h?.scene && h.scene.children.length > 5 && (h.frames ?? 0) > 0;
       },
       null,
       { timeout: OP_TIMEOUT, polling: 500 },
     );
-    // Software GL: first frames compile every shader and upload every texture.
-    await renderedFrames(3);
+    // Software GL: the first frame compiles every shader and uploads every texture (minutes); the
+    // per-shot stability check below takes care of anything that settles later.
     console.log(`  app ready in ${secs(tLoad)} s`);
 
     const windowIds = new Set(await api('(h) => h.windows'));
@@ -294,11 +287,11 @@ async function main() {
         await api('(h) => h.applyProposal()');
         for (const [id, patch] of Object.entries(s.overrides ?? {})) await api('(h, id, p) => h.setCovering(id, p)', id, patch);
         await api('(h, c) => h.photo(c)', { position: s.position, target: s.target, fov: s.fov, exposure: s.exposure });
-        // One full frame with the new state (React commits synchronously on a store change; this frame
-        // compiles any new covering shader, re-renders the shadow map and picks up the reflection pass).
-        await renderedFrames(1);
-        await sleep(200);
-        // Then wait for two identical consecutive frames and keep the second one.
+        // The store change is committed synchronously (zustand → React sync lane) before page.evaluate
+        // returns, so the next frame already shows the new state (it compiles any new covering shader
+        // and refreshes the frozen shadow map). A final frame costs over a minute here, so no blind
+        // waiting: grab that frame's signature, then keep the first frame identical to its predecessor
+        // (a late change, e.g. the reflection pass, only costs one more frame).
         await page.evaluate(() => {
           window.__photoPrevSig = null;
         });

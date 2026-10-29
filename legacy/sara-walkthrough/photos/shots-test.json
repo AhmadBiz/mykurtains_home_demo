@@ -5,8 +5,20 @@
     "titleFr": "Salon — fenêtre nord",
     "room": "g-salon",
     "level": "ground",
-    "position": [6.55, 1.35, 3.45],
-    "target": [8.4, 1.35, 0.0],
+    "position": [6.5, 1.35, 2.3],
+    "target": [8.6, 1.35, 0.0],
     "fov": 62
+  },
+  {
+    "id": "test-salon-b",
+    "title": "Living room — north window (curtains half drawn)",
+    "titleFr": "Salon — fenêtre nord (rideaux mi-tirés)",
+    "room": "g-salon",
+    "level": "ground",
+    "position": [6.5, 1.35, 3.6],
+    "target": [8.23, 1.35, 0.0],
+    "fov": 62,
+    "exposure": 0.95,
+    "overrides": { "w-salon-n": { "open": 0.45 } }
   }
 ]

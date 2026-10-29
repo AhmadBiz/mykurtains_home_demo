@@ -25,7 +25,7 @@ const PHOTO_NEAR = 0.03;
 const WALK_FOV = 70;
 const WALK_NEAR = 0.05;
 /** Frames during which the shadow map is re-rendered after a change (covers a late Suspense mount). */
-const SHADOW_REFRESH_FRAMES = 3;
+const SHADOW_REFRESH_FRAMES = 2;
 
 export function PhotoCamera() {
   const cam = useStore((s) => s.photoCam);
