@@ -295,7 +295,8 @@ function bedroom4(f: Frame): void {
   // from every viewpoint; the dresser keeps 0.35 m to the bed and the stack's hem in view.
   P.dresser(f.at(x1 + 1.5, 0, z1 + IN + 0.225, S), 0.9, 0.85, 0.45, 'paintWhite', 3);
   P.rug(f.at(bx, 0, z2 - 2.1), 1.8, 1.2, 'rugSage');
-  P.picture(f.at(bx, 0, z2 - INT_FACE, N), 0.8, 0.5, 1.6, 'art3');
+  // 0.5 m wide: a wider piece ran into the left edge of the photo of the window
+  P.picture(f.at(bx, 0, z2 - INT_FACE, N), 0.5, 0.4, 1.6, 'art3');
 }
 
 function familyBath(f: Frame): void {
