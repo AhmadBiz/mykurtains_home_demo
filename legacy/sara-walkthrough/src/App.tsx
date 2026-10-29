@@ -10,14 +10,24 @@ import { MiniMap } from './ui/MiniMap';
 import { IntroOverlay } from './ui/IntroOverlay';
 import { TouchControls } from './ui/TouchControls';
 import { LoadingFallback } from './ui/LoadingFallback';
+import { RENDER_EXPOSURE } from './scene/Lighting';
 
-/** ACES filmic exposure, balanced with the sun / environment / room-light intensities in src/scene. */
-const EXPOSURE = 0.85;
+/**
+ * `?dpr=2` (0.5–4) overrides the device-pixel-ratio range so a still can be supersampled: the canvas
+ * keeps its CSS size and renders 2× the pixels (scripts/photos.mjs downsizes the frame with Lanczos).
+ */
+function dprOverride(): number | null {
+  const v = Number(new URLSearchParams(window.location.search).get('dpr'));
+  return Number.isFinite(v) && v >= 0.5 && v <= 4 ? v : null;
+}
+const DPR_OVERRIDE = dprOverride();
 
 export default function App() {
   const quality = useStore((s) => s.quality);
   const isTouch = useStore((s) => s.isTouch);
   const setIsTouch = useStore((s) => s.setIsTouch);
+  // Photo mode is a canvas-only still: no HUD, panels or touch controls.
+  const photo = useStore((s) => s.mode === 'photo');
 
   useEffect(() => {
     const touch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -32,13 +42,13 @@ export default function App() {
       <Canvas
         key={quality}
         shadows={{ type: THREE.PCFShadowMap }}
-        dpr={high ? [1, 1.75] : [0.75, 1]}
+        dpr={DPR_OVERRIDE ?? (high ? [1, 1.75] : [0.75, 1])}
         camera={{ fov: 70, near: 0.05, far: 400, position: [0, 1.7, 0] }}
         gl={{
           antialias: !high,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: EXPOSURE,
+          toneMappingExposure: RENDER_EXPOSURE,
           outputColorSpace: THREE.SRGBColorSpace,
         }}
         style={{ position: 'absolute', inset: 0 }}
@@ -48,12 +58,16 @@ export default function App() {
         </Suspense>
       </Canvas>
       <Suspense fallback={<LoadingFallback />}>
-        <Hud />
-        <MiniMap />
-        <CoveringPanel />
-        <WindowList />
-        {isTouch && <TouchControls />}
-        <IntroOverlay />
+        {!photo && (
+          <>
+            <Hud />
+            <MiniMap />
+            <CoveringPanel />
+            <WindowList />
+            {isTouch && <TouchControls />}
+            <IntroOverlay />
+          </>
+        )}
       </Suspense>
     </div>
   );

@@ -12,9 +12,22 @@ import { HOUSE, PLAYER_EYE_HEIGHT, START_POSITION, START_YAW } from '../data/hou
 import { LEVEL_BY_ID, LEVEL_ENTRY, WINDOWS, WINDOW_BY_ID, viewpointForWindow } from '../data/geometry';
 import type { LevelId } from '../data/types';
 
-export type ViewMode = 'walk' | 'orbit';
+/**
+ * walk = first-person (Player), orbit = dollhouse (OrbitView), photo = a fixed still camera
+ * (PhotoCamera, driven by `photoCam`) used by scripts/photos.mjs: no UI, no highlights, best quality.
+ */
+export type ViewMode = 'walk' | 'orbit' | 'photo';
 export type Panel = 'none' | 'covering' | 'windows' | 'help' | 'map' | 'settings';
 export type Lang = 'fr' | 'en';
+
+/** Still camera of the photo mode (metres; `fov` is the VERTICAL field of view in degrees). */
+export interface PhotoCam {
+  position: [number, number, number];
+  target: [number, number, number];
+  fov: number;
+  /** Renderer tone-mapping exposure for this still; default = RENDER_EXPOSURE (0.85). */
+  exposure?: number;
+}
 
 export interface TeleportRequest {
   position: [number, number, number];
@@ -51,6 +64,8 @@ interface State {
   /** Orbit (dollhouse) view: which level is the top-most shown. */
   orbitLevel: LevelId;
   hasStarted: boolean;
+  /** Photo mode camera (only used while mode === 'photo'). */
+  photoCam: PhotoCam | null;
 
   setLang: (l: Lang) => void;
   setMode: (m: ViewMode) => void;
@@ -65,6 +80,7 @@ interface State {
   setShowCeilings: (v: boolean) => void;
   setOrbitLevel: (l: LevelId) => void;
   setHasStarted: (v: boolean) => void;
+  setPhotoCam: (cam: PhotoCam | null) => void;
 
   getCovering: (id: string) => WindowCoveringState;
   setCoveringType: (id: string, type: CoveringType) => void;
@@ -100,6 +116,7 @@ export const useStore = create<State>()(
       showCeilings: true,
       orbitLevel: 'upper',
       hasStarted: false,
+      photoCam: null,
 
       setLang: (lang) => set({ lang }),
       setMode: (mode) => set({ mode }),
@@ -115,6 +132,7 @@ export const useStore = create<State>()(
       setShowCeilings: (showCeilings) => set({ showCeilings }),
       setOrbitLevel: (orbitLevel) => set({ orbitLevel }),
       setHasStarted: (hasStarted) => set({ hasStarted }),
+      setPhotoCam: (photoCam) => set({ photoCam }),
 
       getCovering: (id) => get().coverings[id] ?? DEFAULT_COVERINGS[id] ?? defaultStateFor('none'),
       setCoveringType: (id, type) =>
@@ -188,6 +206,10 @@ export function useT() {
  *   window.__house.teleport(x, y, z, yaw)   — metres / radians
  *   window.__house.goToWindow('w-ch1-e')
  *   window.__house.setCovering('w-ch1-e', { type: 'roller', color: 'sand', open: 0.3 })
+ *   window.__house.photo({ position: [x, y, z], target: [x, y, z], fov: 62, exposure: 0.85 })
+ *                                            — photo mode: a fixed still camera, no UI, no highlights,
+ *                                              ceilings on, stills quality (see scripts/photos.mjs)
+ *   window.__house.applyProposal()           — every window back to DEFAULT_COVERINGS (the proposal)
  *   window.__house.state()                   — current store snapshot
  *   window.__house.scene / .gl               — the three.js scene and renderer (set by Scene.tsx once mounted)
  */
@@ -201,6 +223,26 @@ export function exposeDebugApi() {
       useStore.getState().updateCovering(id, patch);
     },
     setMode: (m: ViewMode) => useStore.getState().setMode(m),
+    photo: (cam: PhotoCam) => {
+      const s = useStore.getState();
+      s.selectWindow(null);
+      playerState.aimedWindowId = null;
+      if (s.quality !== 'high') s.setQuality('high');
+      useStore.setState({
+        hoveredWindowId: null,
+        panel: 'none',
+        hasStarted: true,
+        showCeilings: true,
+        mode: 'photo',
+        photoCam: {
+          position: [...cam.position] as [number, number, number],
+          target: [...cam.target] as [number, number, number],
+          fov: cam.fov,
+          exposure: cam.exposure,
+        },
+      });
+    },
+    applyProposal: () => useStore.getState().resetAllCoverings(),
     setPanel: (p: Panel) => useStore.getState().setPanel(p),
     start: () => useStore.getState().setHasStarted(true),
     state: () => useStore.getState(),

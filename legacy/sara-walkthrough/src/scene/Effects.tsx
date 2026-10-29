@@ -41,13 +41,44 @@ const AO_DISTANCE_FALLOFF = 0.6;
 
 export function Effects() {
   const quality = useStore((s) => s.quality);
-  const orbit = useStore((s) => s.mode) === 'orbit';
+  const mode = useStore((s) => s.mode);
+  const orbit = mode === 'orbit';
+  if (mode === 'photo') return <PhotoEffects />;
   if (quality !== 'high') return null;
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
       {/* 'medium' = 16 AO samples, 8 denoise samples at radius 12: enough to hide the
           interleaved-gradient dot lattice on plain walls while staying half-resolution. */}
       <N8AO ref={linearN8ao} aoRadius={orbit ? AO_RADIUS_ORBIT : AO_RADIUS_WALK} intensity={AO_INTENSITY} distanceFalloff={AO_DISTANCE_FALLOFF} quality="medium" halfRes depthAwareUpsampling />
+      <SMAA />
+      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      <Vignette eskil={false} offset={0.3} darkness={0.15} />
+    </EffectComposer>
+  );
+}
+
+/**
+ * Stills (photo mode): the same chain at its best — N8AO at FULL resolution with its 'ultra' preset
+ * (64 AO samples, 16 denoise samples, denoise radius 6; the numbers are also passed explicitly because
+ * the wrapper re-applies its own defaults whenever a prop changes), linear (gammaCorrection off),
+ * then SMAA, the explicit ACES pass (reads gl.toneMappingExposure, set per still by PhotoCamera) and
+ * the light vignette.
+ */
+function PhotoEffects() {
+  return (
+    <EffectComposer multisampling={0} enableNormalPass={false}>
+      <N8AO
+        ref={linearN8ao}
+        aoRadius={AO_RADIUS_WALK}
+        intensity={AO_INTENSITY}
+        distanceFalloff={AO_DISTANCE_FALLOFF}
+        quality="ultra"
+        aoSamples={64}
+        denoiseSamples={16}
+        denoiseRadius={6}
+        halfRes={false}
+        depthAwareUpsampling={false}
+      />
       <SMAA />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       <Vignette eskil={false} offset={0.3} darkness={0.15} />

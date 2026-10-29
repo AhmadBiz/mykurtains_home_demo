@@ -1,0 +1,12 @@
+[
+  {
+    "id": "test-salon",
+    "title": "Living room — north window",
+    "titleFr": "Salon — fenêtre nord",
+    "room": "g-salon",
+    "level": "ground",
+    "position": [6.55, 1.35, 3.45],
+    "target": [8.4, 1.35, 0.0],
+    "fov": 62
+  }
+]

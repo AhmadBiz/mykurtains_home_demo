@@ -12,6 +12,7 @@ import { WindowMeshes } from './WindowMeshes';
 import { Furniture } from './Furniture';
 import { Player } from './Player';
 import { OrbitView } from './OrbitView';
+import { PhotoCamera } from './PhotoCamera';
 import { Effects } from './Effects';
 
 preloadAllTextures();
@@ -70,10 +71,13 @@ function Reflections({ all, metals }: { all: GroupRef[]; metals: GroupRef[] }) {
  */
 function DebugHandles() {
   // Re-assigned every frame (two property writes): the Canvas is re-created on a quality change,
-  // and a one-shot effect left scripts racing against the remount.
+  // and a one-shot effect left scripts racing against the remount. `frames` counts rendered frames
+  // (scripts/photos.mjs waits on it to know the scene really drew after a change).
   useFrame(({ scene, gl }) => {
     const house = (window as unknown as { __house?: Record<string, unknown> }).__house;
-    if (house && (house.scene !== scene || house.gl !== gl)) Object.assign(house, { scene, gl });
+    if (!house) return;
+    if (house.scene !== scene || house.gl !== gl) Object.assign(house, { scene, gl });
+    house.frames = ((house.frames as number | undefined) ?? 0) + 1;
   });
   return null;
 }
@@ -105,7 +109,7 @@ export function Scene() {
       <group ref={furniture}>
         <Furniture />
       </group>
-      {mode === 'walk' ? <Player /> : <OrbitView />}
+      {mode === 'walk' ? <Player /> : mode === 'orbit' ? <OrbitView /> : <PhotoCamera />}
       <Reflections all={all.current} metals={metals.current} />
       <Effects />
       <DebugHandles />

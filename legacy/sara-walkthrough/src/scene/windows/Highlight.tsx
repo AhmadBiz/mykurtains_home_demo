@@ -25,9 +25,11 @@ export function Highlight({ id, geometry, z, mats }: Props) {
   const ref = useRef<THREE.Mesh>(null);
   const selected = useStore((s) => s.selectedWindowId === id);
   const hovered = useStore((s) => s.hoveredWindowId === id);
+  // UI-only: never drawn in the photo mode (stills).
+  const photo = useStore((s) => s.mode === 'photo');
   useFrame(() => {
     const m = ref.current;
-    if (m) m.visible = selected || hovered || playerState.aimedWindowId === id;
+    if (m) m.visible = !photo && (selected || hovered || playerState.aimedWindowId === id);
   });
   return (
     <mesh
@@ -35,7 +37,7 @@ export function Highlight({ id, geometry, z, mats }: Props) {
       geometry={geometry}
       material={selected ? mats.hiSelected : mats.hiHover}
       position={[0, 0, z]}
-      visible={selected || hovered}
+      visible={!photo && (selected || hovered)}
       renderOrder={HIGHLIGHT_RENDER_ORDER}
     />
   );

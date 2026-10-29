@@ -50,6 +50,11 @@ export const SUN_POSITION: [number, number, number] = [
  * replaces it is a little stronger so that, against the clamped sky + the small bounce fill, a
  * sunlit white wall is ~4x (linear) brighter than the same wall in shade (a clear day is 5–8x).
  */
+/**
+ * ACES filmic exposure (renderer.toneMappingExposure), balanced with the sun / environment /
+ * room-light intensities below. App.tsx sets it on the renderer; the photo mode overrides it per still.
+ */
+export const RENDER_EXPOSURE = 0.85;
 export const SUN_INTENSITY = 5.5;
 export const SUN_COLOR = '#fff1dc';
 export const ENV_INTENSITY = 0.9;
@@ -71,6 +76,8 @@ const WARM_BIAS: [number, number, number] = [1.06, 1, 0.94];
  * texel is ~1 cm, so muntins and pickets keep their own shadows.
  */
 const SHADOW_EXTENT = 20;
+/** PCF disk radius (texels) for stills: ~2.5 cm penumbra on the sun patches through the windows. */
+const PHOTO_SHADOW_RADIUS = 2.5;
 
 /** Sky / ground colours of the bounce fill (cool off-white sky, warm earth) — see <Lighting/>. */
 export const HEMISPHERE_SKY = '#e9eef4';
@@ -279,13 +286,17 @@ export function applySkyEnvironment(material: THREE.MeshStandardMaterial, sky: T
  */
 export function Lighting() {
   const quality = useStore((s) => s.quality);
+  const photo = useStore((s) => s.mode === 'photo');
   const light = useRef<THREE.DirectionalLight>(null);
   const target = useMemo(() => {
     const o = new THREE.Object3D();
     o.position.copy(SUN_TARGET);
     return o;
   }, []);
-  const mapSize = quality === 'high' ? 4096 : 2048;
+  // Photo mode always gets the 4096² map (≈ 1 cm texels) and a slightly wider PCF disk: three r186's
+  // PCFShadowMap IS the soft filter (Vogel-disk + interleaved-gradient taps scaled by shadow.radius;
+  // PCFSoftShadowMap was removed), and the 2× supersampled still averages its per-pixel rotation away.
+  const mapSize = quality === 'high' || photo ? 4096 : 2048;
 
   useLayoutEffect(() => {
     const l = light.current;
@@ -311,7 +322,7 @@ export function Lighting() {
         // ~1 cm texels: a small normal offset keeps muntin and picket shadows attached to their casters
         shadow-bias={-0.00008}
         shadow-normalBias={0.008}
-        shadow-radius={2}
+        shadow-radius={photo ? PHOTO_SHADOW_RADIUS : 2}
         shadow-camera-left={-SHADOW_EXTENT}
         shadow-camera-right={SHADOW_EXTENT}
         shadow-camera-top={SHADOW_EXTENT}
