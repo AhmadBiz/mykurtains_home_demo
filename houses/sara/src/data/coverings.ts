@@ -199,38 +199,44 @@ export function colorOption(state: WindowCoveringState): ColorOption {
 }
 
 /**
- * Initial look of the house when it is first opened — a furnished, lived-in default so the
- * visitor immediately sees a variety of coverings. Keys are window ids from house.ts.
+ * MyKurtains proposal for Maison Sara, shown when the house is first opened: ceiling-to-floor ripple-fold
+ * curtains as the hero, natural linen roman shades and roller blinds where they suit better. Keys are window
+ * ids from house.ts.
  */
 export const DEFAULT_COVERINGS: Record<string, WindowCoveringState> = {
-  // ground floor
-  'w-salon-n': { type: 'curtains', color: 'oat', open: 0.75, tilt: 0, sheer: true },
-  'w-sam-n': { type: 'curtains', color: 'oat', open: 0.75, tilt: 0, sheer: true },
-  'w-sam-e': { type: 'sheers', color: 'white', open: 0.15, tilt: 0, sheer: false },
-  'w-sam-s': { type: 'sheers', color: 'white', open: 0.15, tilt: 0, sheer: false },
-  'd-patio': { type: 'vertical', color: 'ivory-fabric', open: 0.3, tilt: 0.5, sheer: false },
-  'w-cuisine-s': { type: 'roller', color: 'sand', open: 0.6, tilt: 0, sheer: false },
-  'w-sdeau-n': { type: 'venetian', color: 'white-alu', open: 0, tilt: 0.6, sheer: false },
-  'w-escalier': { type: 'none', color: 'none', open: 1, tilt: 0, sheer: false },
+  // ---- Ground floor: one open living space, dressed alike: oatmeal linen ripple-fold, white voile behind
+  'w-salon-n': { type: 'curtains', color: 'oat', open: 0.8, tilt: 0, sheer: true },
+  'w-sam-n': { type: 'curtains', color: 'oat', open: 0.8, tilt: 0, sheer: true },
+  'w-sam-e': { type: 'curtains', color: 'oat', open: 0.8, tilt: 0, sheer: true },
+  'w-sam-s': { type: 'curtains', color: 'oat', open: 0.8, tilt: 0, sheer: true },
+  'd-patio': { type: 'curtains', color: 'oat', open: 0.85, tilt: 0, sheer: true },
+  // over the sink: a natural linen roman (no floor-length fabric over a counter and faucet)
+  'w-cuisine-s': { type: 'roman', color: 'natural', open: 0.35, tilt: 0, sheer: false },
+  // powder room: natural linen roman
+  'w-sdeau-n': { type: 'roman', color: 'natural', open: 0.4, tilt: 0, sheer: false },
+  // 12 ft stair window: sand solar-screen roller (filters sun, keeps the view)
+  'w-escalier': { type: 'roller', color: 'sand', open: 0.55, tilt: 0, sheer: false },
   'w-garage-s': { type: 'none', color: 'none', open: 1, tilt: 0, sheer: false },
-  // upper floor
-  'w-ch1-e': { type: 'curtains', color: 'navy', open: 0.65, tilt: 0, sheer: true },
-  'w-ch1-n': { type: 'curtains', color: 'navy', open: 0.65, tilt: 0, sheer: true },
-  'w-ch1-s': { type: 'curtains', color: 'navy', open: 0.65, tilt: 0, sheer: true },
-  'w-walkin1-n': { type: 'cellular', color: 'cream', open: 0.3, tilt: 0, sheer: false },
-  'w-sdb1-e': { type: 'roller', color: 'white-lf', open: 0.4, tilt: 0, sheer: false },
-  'w-sdb1-s': { type: 'roller', color: 'white-lf', open: 0.4, tilt: 0, sheer: false },
-  'w-ch2-e': { type: 'roman', color: 'olive', open: 0.45, tilt: 0, sheer: false },
-  'w-walkin2-s': { type: 'cellular', color: 'white', open: 0.5, tilt: 0, sheer: false },
-  'w-ch3-s': { type: 'shutters', color: 'white', open: 0, tilt: 0.25, sheer: false },
-  'w-ch3-w': { type: 'shutters', color: 'white', open: 0, tilt: 0.25, sheer: false },
-  'w-ch4-w': { type: 'curtains', color: 'sage', open: 0.6, tilt: 0, sheer: false },
-  'w-sdb2-n': { type: 'venetian', color: 'white-wood', open: 0, tilt: 0.5, sheer: false },
-  // basement
-  'w-ch5-n': { type: 'cellular', color: 'dove', open: 0.4, tilt: 0, sheer: false },
-  'w-ch6-n': { type: 'roller', color: 'graphite-bo', open: 0.5, tilt: 0, sheer: false },
-  'w-ch6-e': { type: 'roller', color: 'graphite-bo', open: 0.5, tilt: 0, sheer: false },
-  'w-familiale-e': { type: 'venetian', color: 'oak', open: 0, tilt: 0.3, sheer: false },
-  'w-familiale-s': { type: 'venetian', color: 'oak', open: 0, tilt: 0.3, sheer: false },
-  'w-sdb3-n': { type: 'roller', color: 'white-bo', open: 0.3, tilt: 0, sheer: false },
+  // ---- Upper floor
+  // master: navy velvet ripple-fold over white voile, tonal with the blue-grey walls
+  'w-ch1-e': { type: 'curtains', color: 'navy', open: 0.7, tilt: 0, sheer: true },
+  'w-ch1-n': { type: 'curtains', color: 'navy', open: 0.7, tilt: 0, sheer: true },
+  'w-ch1-s': { type: 'curtains', color: 'navy', open: 0.7, tilt: 0, sheer: true },
+  'w-walkin1-n': { type: 'roller', color: 'white-bo', open: 0.35, tilt: 0, sheer: false },
+  'w-sdb1-e': { type: 'roller', color: 'white-lf', open: 0.45, tilt: 0, sheer: false },
+  'w-sdb1-s': { type: 'roller', color: 'white-lf', open: 0.45, tilt: 0, sheer: false },
+  'w-ch2-e': { type: 'curtains', color: 'ivory', open: 0.7, tilt: 0, sheer: true },
+  'w-walkin2-s': { type: 'roller', color: 'white-bo', open: 0.35, tilt: 0, sheer: false },
+  // bedroom 3 (desk room): natural linen romans on both windows
+  'w-ch3-s': { type: 'roman', color: 'natural', open: 0.5, tilt: 0, sheer: false },
+  'w-ch3-w': { type: 'roman', color: 'natural', open: 0.5, tilt: 0, sheer: false },
+  'w-ch4-w': { type: 'curtains', color: 'sage', open: 0.7, tilt: 0, sheer: true },
+  'w-sdb2-n': { type: 'roller', color: 'white-lf', open: 0.45, tilt: 0, sheer: false },
+  // ---- Basement: floor-length drapes make the small high windows read as large ones
+  'w-ch5-n': { type: 'curtains', color: 'oat', open: 0.75, tilt: 0, sheer: false },
+  'w-ch6-n': { type: 'curtains', color: 'ivory', open: 0.75, tilt: 0, sheer: false },
+  'w-ch6-e': { type: 'curtains', color: 'ivory', open: 0.75, tilt: 0, sheer: false },
+  'w-familiale-e': { type: 'roller', color: 'grey-lf', open: 0.5, tilt: 0, sheer: false },
+  'w-familiale-s': { type: 'roller', color: 'grey-lf', open: 0.5, tilt: 0, sheer: false },
+  'w-sdb3-n': { type: 'roller', color: 'white-lf', open: 0.4, tilt: 0, sheer: false },
 };

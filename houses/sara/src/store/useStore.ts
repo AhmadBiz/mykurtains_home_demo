@@ -96,7 +96,7 @@ export const useStore = create<State>()(
       resetAllCoverings: () => set({ coverings: { ...DEFAULT_COVERINGS } }),
     }),
     {
-      name: 'maison-sara-v2',
+      name: 'maison-sara-v3',
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ coverings: s.coverings, lang: s.lang }),
     },
