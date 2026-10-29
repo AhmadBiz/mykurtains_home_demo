@@ -75,8 +75,8 @@ Two renders at the same time on this machine only slow each other down (CPU-boun
   by moving the camera, not by tilting it. The script warns when a shot is tilted.
 * **Lens**: 55–65° vertical reads as a real-estate wide angle; above ~70° the corners stretch.
   A camera just inside a doorway or in a corner shows two walls and makes small rooms read larger.
-  Mind the near plane (3 cm) and walls: a camera closer than ~15 cm to a wall sees through nothing,
-  but furniture right in front of the lens fills the frame — check the draft.
+  Keep the camera at least ~10 cm from walls (near plane 3 cm) and check the draft for furniture
+  right in front of the lens: in the small rooms a sofa back or a bed end easily fills the bottom third.
 * **Show the hero**: the curtains hang from a ceiling track to ~1 cm above the floor. Frame so the
   track at the ceiling AND the hem on the floor are both in the picture (low sofas and beds in the
   foreground hide the hem — move the camera to the side of them or raise it to ~1.45 m).

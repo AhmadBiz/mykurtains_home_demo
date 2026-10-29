@@ -19,11 +19,14 @@
  * Metres (see src/data/house.ts), fov = VERTICAL degrees. Keep target[1] === position[1] so verticals
  * stay vertical. `overrides` patches the proposal for this shot only (window.__house.setCovering).
  *
- * Each shot: applyProposal → overrides → photo camera → wait until the scene has drawn and two
- * consecutive frames are identical → grab the WebGL canvas (only the canvas: no DOM UI) in the same
- * animation frame it was rendered in.
+ * Each shot: applyProposal → overrides → photo camera → render frames on demand
+ * (window.__house.renderFrame; the photo mode runs R3F with frameloop 'never') until two consecutive
+ * frames are identical → read the WebGL canvas (only the canvas: no DOM UI) in the same task that
+ * rendered it.
  *
- * Builds into dist-photos/ (never touches dist/) and serves it with `vite preview --strictPort`.
+ * Builds into dist-photos-<port>/ (never touches dist/; one dir per port so parallel runs on
+ * different ports never rebuild under each other's server), rebuilt whenever src/ or public/ is newer,
+ * and serves it with `vite preview --strictPort`.
  * Exit code 1 on any page error, console error, WebGL context loss or failed shot.
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -35,7 +38,6 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT_DIR = join(ROOT, 'dist-photos');
 const PHOTOS = join(ROOT, 'photos');
 const DRAFTS = join(PHOTOS, 'drafts');
 const EXECUTABLE = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
@@ -55,6 +57,7 @@ const option = (name) => {
 const DRAFT = flag('--draft');
 const FORCE_BUILD = flag('--build');
 const PORT = Number(option('--port') ?? 4410);
+const OUT_DIR = join(ROOT, `dist-photos-${PORT}`);
 const ONLY = option('--only') ? new Set(option('--only').split(',').map((s) => s.trim()).filter(Boolean)) : null;
 
 const MODE = DRAFT
@@ -109,7 +112,7 @@ function ensureBuild() {
   const stale = !existsSync(index) || Math.max(...sources.map(newestMtime)) > statSync(index).mtimeMs;
   if (!FORCE_BUILD && !stale) return;
   const t0 = Date.now();
-  console.log(`building into dist-photos/ (${FORCE_BUILD ? 'forced' : existsSync(index) ? 'sources changed' : 'missing'})…`);
+  console.log(`building into ${OUT_DIR.slice(ROOT.length + 1)}/ (${FORCE_BUILD ? 'forced' : existsSync(index) ? 'sources changed' : 'missing'})…`);
   const r = spawnSync('npx', ['vite', 'build', '--outDir', OUT_DIR, '--emptyOutDir', '--logLevel', 'warn'], { cwd: ROOT, stdio: 'inherit' });
   if (r.status !== 0) throw new Error('vite build failed');
   console.log(`  built in ${secs(t0)} s`);
