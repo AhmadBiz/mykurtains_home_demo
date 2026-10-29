@@ -1,0 +1,119 @@
+{
+  "_global": {
+    "preamble": "Turn this 3D render into a real professional interior photograph of the same room, as if shot for a high-end interior design magazine. Keep EXACTLY the same camera position, lens and framing, the same room shape, ceiling height, walls, doors, and the same number, positions and sizes of windows. Keep the furniture layout from the render, but make every object look real and high-end.",
+    "coverings_rule": "The window coverings are the subject of the photo and must be reproduced exactly as described (type, colour, how they hang, how open they are).",
+    "style": "Warm-minimal Scandinavian-meets-Québec style: natural oak, linen and boucle upholstery, wool and jute rugs, ceramic and stone accents, a few green plants, styled but not cluttered. Light: soft late-afternoon sun entering through the windows with gentle warm light patches on the floor, balanced exposure, windows not blown out. Through the glass: a quiet suburban street in Laval, Québec with two-storey houses and mature trees.",
+    "camera": "Full-frame camera, 20 mm lens, level camera with perfectly straight verticals, natural colours, realistic soft shadows and fine textures, ultra-detailed. No people, no text, no watermark, no logos.",
+    "ids": {
+      "note": "Keys are room ids from houses/sara/src/data/house.ts (HOUSE.rooms[].id); 'exterior' for the street view."
+    }
+  },
+  "g-salon": {
+    "title": "Living room",
+    "titleFr": "Salon",
+    "scene": "a bright living room with a light oak hardwood floor and warm white walls",
+    "coverings": "On the window: floor-to-ceiling ripple-fold curtains in oatmeal linen hanging from a slim white aluminium track mounted flush to the ceiling (no curtain rod, no rings, no finials, no pinch pleats), with even soft S-shaped waves running the full height from the ceiling down to one centimetre above the floor, drawn open and stacked neatly to each side of the window, plus a sheer white voile ripple-fold curtain on its own parallel ceiling track behind them, drawn closed across the glass so the view outside is softly diffused."
+  },
+  "g-sam": {
+    "title": "Dining room",
+    "titleFr": "Salle à manger",
+    "scene": "a dining room with a light oak hardwood floor and warm white walls, an oak dining table for six with upholstered chairs and a linen-shaded pendant above it",
+    "coverings": "On every window: floor-to-ceiling ripple-fold curtains in oatmeal linen hanging from a slim white aluminium track mounted flush to the ceiling (no curtain rod, no rings, no finials, no pinch pleats), with even soft S-shaped waves running the full height from the ceiling down to one centimetre above the floor, drawn open and stacked neatly to each side of the window, plus a sheer white voile ripple-fold curtain on its own parallel ceiling track behind them, drawn closed across the glass so the view outside is softly diffused."
+  },
+  "g-cuisine": {
+    "title": "Kitchen",
+    "titleFr": "Cuisine",
+    "scene": "a kitchen with a light oak hardwood floor, warm white walls, white shaker cabinets, a white quartz countertop and an island",
+    "coverings": "On the tall sliding patio door: floor-to-ceiling ripple-fold curtains in oatmeal linen hanging from a slim white aluminium track mounted flush to the ceiling (no curtain rod, no rings, no finials, no pinch pleats), with even soft S-shaped waves running the full height from the ceiling down to one centimetre above the floor, drawn open and stacked neatly to each side of the window, plus a sheer white voile ripple-fold curtain on its own parallel ceiling track behind them, drawn closed across the glass so the view outside is softly diffused. On the smaller window above the sink: a natural linen flat-fold roman shade mounted inside the window frame, half raised, with neat soft horizontal folds and a visible slubby linen weave."
+  },
+  "g-sdeau": {
+    "title": "Powder room",
+    "titleFr": "Salle d'eau",
+    "scene": "a small powder room with pale grey tiles, soft blue-grey walls, a pedestal sink with a round mirror and brass tap",
+    "coverings": "On the small frosted window: a natural linen flat-fold roman shade mounted inside the window frame, half raised, with neat soft horizontal folds and a visible slubby linen weave."
+  },
+  "g-escalier": {
+    "title": "Stair hall",
+    "titleFr": "Cage d'escalier",
+    "scene": "a double-height stair hall with oak treads, a white stair and warm white walls",
+    "coverings": "On the very tall narrow stair window: a warm sand solar-screen roller blind in a slim white cassette mounted inside the window frame, lowered about halfway, perfectly flat fabric with a slim bottom bar, so the view stays visible through the fabric."
+  },
+  "u-ch1": {
+    "title": "Master bedroom",
+    "titleFr": "Chambre principale",
+    "scene": "a serene master bedroom with a light oak hardwood floor and soft blue-grey walls, a queen bed with white linen bedding and a navy throw, oak nightstands with ceramic lamps",
+    "coverings": "On every window: floor-to-ceiling ripple-fold curtains in deep navy velvet with a soft sheen hanging from a slim white aluminium track mounted flush to the ceiling (no curtain rod, no rings, no finials, no pinch pleats), with even soft S-shaped waves running the full height from the ceiling down to one centimetre above the floor, drawn open and stacked neatly to each side of the window, plus a sheer white voile ripple-fold curtain on its own parallel ceiling track behind them, drawn closed across the glass so the view outside is softly diffused."
+  },
+  "u-walkin1": {
+    "title": "Master walk-in closet",
+    "titleFr": "Walk-in de la chambre principale",
+    "scene": "a walk-in closet with oak floors, light grey walls, white built-in shelving and neatly hung clothes",
+    "coverings": "On the small window: a white blackout roller blind in a slim white cassette mounted inside the window frame, lowered about halfway, perfectly flat fabric with a slim bottom bar."
+  },
+  "u-sdb1": {
+    "title": "Ensuite bathroom",
+    "titleFr": "Salle de bain principale",
+    "scene": "a spa-like ensuite bathroom with large pale stone tiles, light grey walls, a freestanding white tub with a floor-mounted brass filler, a double oak vanity and a glass shower",
+    "coverings": "On each frosted window: a white light-filtering roller blind in a slim white cassette mounted inside the window frame, lowered about halfway, perfectly flat fabric with a slim bottom bar."
+  },
+  "u-ch2": {
+    "title": "Bedroom 2",
+    "titleFr": "Chambre 2",
+    "scene": "a calm bedroom with a light oak hardwood floor and soft sage-green walls, a double bed with white and oat linen bedding",
+    "coverings": "On the window: floor-to-ceiling ripple-fold curtains in ivory linen hanging from a slim white aluminium track mounted flush to the ceiling (no curtain rod, no rings, no finials, no pinch pleats), with even soft S-shaped waves running the full height from the ceiling down to one centimetre above the floor, drawn open and stacked neatly to each side of the window, plus a sheer white voile ripple-fold curtain on its own parallel ceiling track behind them, drawn closed across the glass so the view outside is softly diffused."
+  },
+  "u-walkin2": {
+    "title": "Bedroom 2 walk-in closet",
+    "titleFr": "Walk-in de la chambre 2",
+    "scene": "a narrow walk-in closet with oak floors, light grey walls, white shelving and hanging rails",
+    "coverings": "On the small window: a white blackout roller blind in a slim white cassette mounted inside the window frame, lowered about halfway, perfectly flat fabric with a slim bottom bar."
+  },
+  "u-ch3": {
+    "title": "Bedroom 3 / study",
+    "titleFr": "Chambre 3 / bureau",
+    "scene": "a bedroom-study with a light oak hardwood floor and pale blush walls, an oak desk with a linen desk chair, a daybed and a few books and plants",
+    "coverings": "On both windows: a natural linen flat-fold roman shade mounted inside the window frame, half raised, with neat soft horizontal folds and a visible slubby linen weave."
+  },
+  "u-ch4": {
+    "title": "Bedroom 4",
+    "titleFr": "Chambre 4",
+    "scene": "a bedroom with a light oak hardwood floor and soft sage-green walls, a double bed with white linen bedding, an oak wardrobe",
+    "coverings": "On the window: floor-to-ceiling ripple-fold curtains in sage-green linen hanging from a slim white aluminium track mounted flush to the ceiling (no curtain rod, no rings, no finials, no pinch pleats), with even soft S-shaped waves running the full height from the ceiling down to one centimetre above the floor, drawn open and stacked neatly to each side of the window, plus a sheer white voile ripple-fold curtain on its own parallel ceiling track behind them, drawn closed across the glass so the view outside is softly diffused."
+  },
+  "u-sdb2": {
+    "title": "Family bathroom",
+    "titleFr": "Salle de bain familiale",
+    "scene": "a family bathroom with white tiles, soft blue-grey walls, a bathtub with a glass shower screen under the window and an oak vanity",
+    "coverings": "On the frosted window above the tub: a white light-filtering roller blind in a slim white cassette mounted inside the window frame, lowered about halfway, perfectly flat fabric with a slim bottom bar."
+  },
+  "b-ch5": {
+    "title": "Basement bedroom 5",
+    "titleFr": "Chambre 5 (sous-sol)",
+    "scene": "a cosy basement bedroom with a soft warm grey carpet and sage-green walls, a double bed with oat linen bedding; the window is a small horizontal window set high in the wall",
+    "coverings": "On the small high window: floor-to-ceiling ripple-fold curtains in oatmeal linen hanging from a slim white aluminium track mounted flush to the ceiling (no curtain rod, no rings, no finials, no pinch pleats), with even soft S-shaped waves running the full height from the ceiling down to one centimetre above the floor, drawn open and stacked neatly to each side of the window; the curtains run from the ceiling to the floor so the small high window reads as a large one."
+  },
+  "b-ch6": {
+    "title": "Basement bedroom 6",
+    "titleFr": "Chambre 6 (sous-sol)",
+    "scene": "a cosy basement bedroom with a soft warm grey carpet and pale blush walls, a double bed with white linen bedding; the windows are small horizontal windows set high in the walls",
+    "coverings": "On each small high window: floor-to-ceiling ripple-fold curtains in ivory linen hanging from a slim white aluminium track mounted flush to the ceiling (no curtain rod, no rings, no finials, no pinch pleats), with even soft S-shaped waves running the full height from the ceiling down to one centimetre above the floor, drawn open and stacked neatly to each side of the window; the curtains run from the ceiling to the floor so the small high windows read as large ones."
+  },
+  "b-familiale": {
+    "title": "Family room",
+    "titleFr": "Salle familiale",
+    "scene": "a relaxed basement family room with a light oak laminate floor and warm white walls, a large sectional sofa in oatmeal boucle, a media wall with a TV and a wool rug; the windows are small horizontal windows set high in the walls",
+    "coverings": "On each small high window: a light grey light-filtering roller blind in a slim white cassette mounted inside the window frame, lowered about halfway, perfectly flat fabric with a slim bottom bar."
+  },
+  "b-sdb3": {
+    "title": "Basement bathroom",
+    "titleFr": "Salle de bain du sous-sol",
+    "scene": "a compact basement bathroom with white tiles, soft blue-grey walls, a glass shower and an oak vanity; the window is a small frosted window set high in the wall",
+    "coverings": "On the small frosted window: a white light-filtering roller blind in a slim white cassette mounted inside the window frame, lowered about halfway, perfectly flat fabric with a slim bottom bar."
+  },
+  "exterior": {
+    "title": "Maison Sara",
+    "titleFr": "Maison Sara",
+    "scene": "the street front of a new two-storey house in Laval, Québec: red-brown brick ground floor, light warm grey horizontal siding upstairs, dark asphalt-shingle hip roof, a small entry porch with white columns, an attached single garage with a white door, a paved driveway and a green lawn with young trees",
+    "coverings": "Behind the windows, hints of light-coloured curtains and blinds."
+  }
+}
