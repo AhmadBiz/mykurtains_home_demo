@@ -295,19 +295,27 @@ async function main() {
         await page.evaluate(() => {
           window.__photoPrevSig = null;
         });
+        let tg = Date.now();
         await grab();
+        const frameLog = [`${secs(tg)}`];
         let shot = null;
         let last = null;
+        let grabs = 1;
         for (let i = 0; i < 6 && !shot; i++) {
+          tg = Date.now();
           last = await grab();
+          grabs += 1;
+          frameLog.push(`${secs(tg)}${last.stable ? '' : `(Δ${last.delta})`}`);
           if (last.stable) shot = last;
         }
         if (!shot) throw new Error(`the frame never stabilised (6 tries, last difference ${last?.delta})`);
         if (shot.mean < 2) throw new Error(`the captured frame is black (mean luminance ${shot.mean.toFixed(2)})`);
         const file = join(MODE.dir, `${s.id}.jpg`);
+        tg = Date.now();
         const info = encodeJpeg(shot.png, file, MODE.out, MODE.quality);
+        frameLog.push(`encode ${secs(tg)}`);
         rendered.push(file);
-        console.log(`  ${s.id}: ${secs(t0)} s (canvas ${shot.w}×${shot.h} → ${info}, mean luma ${shot.mean.toFixed(0)}) → ${file.slice(ROOT.length + 1)}`);
+        console.log(`  ${s.id}: ${secs(t0)} s — ${grabs} frames [${frameLog.join(', ')} s], canvas ${shot.w}×${shot.h} → ${info}, mean luma ${shot.mean.toFixed(0)} → ${file.slice(ROOT.length + 1)}`);
       } catch (e) {
         errors.push(`${s.id}: ${e.message}`);
         console.error(`  ${s.id}: FAILED after ${secs(t0)} s — ${e.message}`);
