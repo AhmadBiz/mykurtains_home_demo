@@ -222,16 +222,18 @@ async function main() {
 
     const api = (fn, ...args) => page.evaluate(([f, a]) => new Function('a', `return (${f})(window.__house, ...a)`)(a), [fn, args]);
     /**
-     * Runs in the page, in the animation frame right AFTER R3F's render (R3F re-queues its loop first
-     * thing, so a callback queued now runs after it in the same frame, before the buffer is presented):
-     * a 96×64 luminance signature of the canvas is compared with the previous call's; when the two
-     * frames match (max difference ≤ 1/255) the full-resolution PNG of THIS frame is returned too.
+     * Runs in the page: renders ONE frame synchronously (window.__house.renderFrame — the photo mode
+     * runs R3F with frameloop 'never', see src/scene/PhotoCamera.tsx) and reads the canvas in the same
+     * task, while the drawing buffer still holds that frame. A 96×64 luminance signature is compared
+     * with the previous call's; when the two frames match (max difference ≤ 1/255) the
+     * full-resolution PNG of this frame is returned too.
      */
     const grab = () =>
       page.evaluate(
         () =>
           new Promise((done) =>
-            requestAnimationFrame(() => {
+            setTimeout(() => {
+              window.__house.renderFrame();
               const c = document.querySelector('canvas');
               const t = document.createElement('canvas');
               t.width = 96;
@@ -255,7 +257,7 @@ async function main() {
               }
               const stable = delta <= 1;
               done({ stable, delta, mean: sum / sig.length, w: c.width, h: c.height, png: stable ? c.toDataURL('image/png') : null });
-            }),
+            }, 0),
           ),
       );
 
@@ -266,17 +268,10 @@ async function main() {
     // Enter photo mode at the first shot straight away (forces quality 'high', ceilings, no UI).
     await api('(h) => h.applyProposal()');
     await api('(h, c) => h.photo(c)', { position: shots[0].position, target: shots[0].target, fov: shots[0].fov, exposure: shots[0].exposure });
-    await page.waitForFunction(
-      () => {
-        const h = window.__house;
-        return !!h?.scene && h.scene.children.length > 5 && (h.frames ?? 0) > 0;
-      },
-      null,
-      { timeout: OP_TIMEOUT, polling: 500 },
-    );
-    // Software GL: the first frame compiles every shader and uploads every texture (minutes); the
-    // per-shot stability check below takes care of anything that settles later.
-    console.log(`  app ready in ${secs(tLoad)} s`);
+    // PhotoCamera (inside the Scene's Suspense boundary) installs renderFrame once every texture and
+    // the HDRI are loaded. The first frame then compiles every shader (a minute or two here).
+    await page.waitForFunction(() => typeof window.__house?.renderFrame === 'function', null, { timeout: OP_TIMEOUT, polling: 500 });
+    console.log(`  app loaded (scene mounted) in ${secs(tLoad)} s`);
 
     const windowIds = new Set(await api('(h) => h.windows'));
 
@@ -289,9 +284,9 @@ async function main() {
         await api('(h, c) => h.photo(c)', { position: s.position, target: s.target, fov: s.fov, exposure: s.exposure });
         // The store change is committed synchronously (zustand → React sync lane) before page.evaluate
         // returns, so the next frame already shows the new state (it compiles any new covering shader
-        // and refreshes the frozen shadow map). A final frame costs over a minute here, so no blind
-        // waiting: grab that frame's signature, then keep the first frame identical to its predecessor
-        // (a late change, e.g. the reflection pass, only costs one more frame).
+        // and refreshes the frozen shadow map). Frames are expensive, so no blind waiting: render one,
+        // then keep the first frame identical to its predecessor (a late change, e.g. the reflection
+        // pass, only costs one more frame).
         await page.evaluate(() => {
           window.__photoPrevSig = null;
         });

@@ -11,6 +11,11 @@
  * for SHADOW_REFRESH_FRAMES frames after any change of the camera or of the coverings (coverings
  * mount new meshes that cast shadows), then frozen until the next change.
  *
+ * Rendering: the Canvas runs with frameloop 'never' in photo mode (App.tsx) and nothing is drawn
+ * until `window.__house.renderFrame()` is called (installed here): it renders one frame
+ * synchronously, so the caller can read the canvas in the same task (the drawing buffer is still
+ * intact — no preserveDrawingBuffer needed) and no frame is ever wasted.
+ *
  * Keep target.y === position.y for a level camera: vertical lines then stay vertical (two-point
  * perspective), the way interiors are photographed.
  */
@@ -32,6 +37,7 @@ export function PhotoCamera() {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const invalidate = useThree((s) => s.invalidate);
+  const advance = useThree((s) => s.advance);
   const coverings = useStore((s) => s.coverings);
   const shadowFrames = useRef(SHADOW_REFRESH_FRAMES);
 
@@ -46,6 +52,15 @@ export function PhotoCamera() {
       gl.shadowMap.autoUpdate = true;
     };
   }, [gl]);
+  // Manual rendering hook for scripts/photos.mjs (R3F's clock is in seconds).
+  useEffect(() => {
+    const house = (window as unknown as { __house?: Record<string, unknown> }).__house;
+    if (!house) return;
+    house.renderFrame = () => advance(performance.now() / 1000, true);
+    return () => {
+      delete house.renderFrame;
+    };
+  }, [advance]);
   // Runs before the render of the same frame (priority < 1 keeps R3F's own render loop).
   useFrame(() => {
     if (shadowFrames.current > 0) {

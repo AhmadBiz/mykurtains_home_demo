@@ -41,6 +41,9 @@ export default function App() {
           high = SMAA in the post chain (no MSAA), low = MSAA and no post. The Player keeps its pose. */}
       <Canvas
         key={quality}
+        // Photo mode renders only on request (window.__house.renderFrame, see PhotoCamera.tsx): a
+        // supersampled still costs a minute per frame under software GL.
+        frameloop={photo ? 'never' : 'always'}
         shadows={{ type: THREE.PCFShadowMap }}
         dpr={DPR_OVERRIDE ?? (high ? [1, 1.75] : [0.75, 1])}
         camera={{ fov: 70, near: 0.05, far: 400, position: [0, 1.7, 0] }}
