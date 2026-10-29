@@ -1,13 +1,420 @@
 [
-  {"id":"sara-chambre-1a","title":"Master bedroom","titleFr":"Chambre #1 (principale)","room":"u-ch1","level":"upper","position":[8.6,4.4,3.35],"target":[13.1,4.4,0.6],"fov":64,"exposure":0.95},
-  {"id":"sara-chambre-1b","title":"Master bedroom","titleFr":"Chambre #1 (principale)","room":"u-ch1","level":"upper","position":[8.6,4.4,0.45],"target":[13.1,4.4,3.4],"fov":64,"exposure":0.95},
-  {"id":"sara-chambre-1c","title":"Master bedroom","titleFr":"Chambre #1 (principale)","room":"u-ch1","level":"upper","position":[8.6,4.4,1.9],"target":[13.1,4.4,1.9],"fov":66,"exposure":0.95},
-  {"id":"sara-walkin-1","title":"Master walk-in","titleFr":"Walk-in (chambre #1)","room":"u-walkin1","level":"upper","position":[7.25,4.42,2.45],"target":[7.25,4.42,0],"fov":72,"exposure":1.0},
-  {"id":"sara-sdb-1a","title":"Ensuite bathroom","titleFr":"Salle de bain #1","room":"u-sdb1","level":"upper","position":[6.6,4.4,4.8],"target":[10.21,4.4,5.6],"fov":66,"exposure":1.0},
-  {"id":"sara-sdb-1b","title":"Ensuite bathroom","titleFr":"Salle de bain #1","room":"u-sdb1","level":"upper","position":[8.35,4.4,4.72],"target":[10.0,4.4,6.25],"fov":70,"exposure":1.0},
-  {"id":"sara-chambre-2","title":"Bedroom 2","titleFr":"Chambre #2","room":"u-ch2","level":"upper","position":[4.2,4.4,5.7],"target":[7.62,4.4,8.0],"fov":64,"exposure":1.0},
-  {"id":"sara-walkin-2","title":"Walk-in (bedroom 2)","titleFr":"Walk-in (chambre #2)","room":"u-walkin2","level":"upper","position":[4.3,4.45,9.2],"target":[6.2,4.45,10.21],"fov":76,"exposure":1.05},
-  {"id":"sara-chambre-3","title":"Bedroom 3","titleFr":"Chambre #3","room":"u-ch3","level":"upper","position":[2.55,4.4,7.4],"target":[0.3,4.4,10.0],"fov":64,"exposure":0.95},
-  {"id":"sara-chambre-4","title":"Bedroom 4","titleFr":"Chambre #4","room":"u-ch4","level":"upper","position":[2.55,4.4,4.2],"target":[0.0,4.4,6.4],"fov":64,"exposure":0.95},
-  {"id":"sara-sdb-2","title":"Family bathroom","titleFr":"Salle de bain #2","room":"u-sdb2","level":"upper","position":[2.21,4.42,2.5],"target":[2.21,4.42,0.91],"fov":72,"exposure":1.0}
+ {
+  "id": "sara-chambre-1a",
+  "title": "Master bedroom",
+  "titleFr": "Chambre #1 (principale)",
+  "room": "u-ch1",
+  "level": "upper",
+  "position": [
+   8.6,
+   4.4,
+   3.35
+  ],
+  "target": [
+   13.1,
+   4.4,
+   0.6
+  ],
+  "fov": 64,
+  "exposure": 0.95
+ },
+ {
+  "id": "sara-chambre-1b",
+  "title": "Master bedroom",
+  "titleFr": "Chambre #1 (principale)",
+  "room": "u-ch1",
+  "level": "upper",
+  "position": [
+   8.6,
+   4.4,
+   0.45
+  ],
+  "target": [
+   13.1,
+   4.4,
+   3.4
+  ],
+  "fov": 64,
+  "exposure": 0.95
+ },
+ {
+  "id": "sara-chambre-1c",
+  "title": "Master bedroom",
+  "titleFr": "Chambre #1 (principale)",
+  "room": "u-ch1",
+  "level": "upper",
+  "position": [
+   8.6,
+   4.4,
+   1.9
+  ],
+  "target": [
+   13.1,
+   4.4,
+   1.9
+  ],
+  "fov": 66,
+  "exposure": 0.95
+ },
+ {
+  "id": "sara-walkin-1",
+  "title": "Master walk-in",
+  "titleFr": "Walk-in (chambre #1)",
+  "room": "u-walkin1",
+  "level": "upper",
+  "position": [
+   7.25,
+   4.42,
+   2.45
+  ],
+  "target": [
+   7.25,
+   4.42,
+   0
+  ],
+  "fov": 72,
+  "exposure": 1.0
+ },
+ {
+  "id": "sara-sdb-1a",
+  "title": "Ensuite bathroom",
+  "titleFr": "Salle de bain #1",
+  "room": "u-sdb1",
+  "level": "upper",
+  "position": [
+   6.6,
+   4.4,
+   4.8
+  ],
+  "target": [
+   10.21,
+   4.4,
+   5.6
+  ],
+  "fov": 66,
+  "exposure": 1.0
+ },
+ {
+  "id": "sara-sdb-1b",
+  "title": "Ensuite bathroom",
+  "titleFr": "Salle de bain #1",
+  "room": "u-sdb1",
+  "level": "upper",
+  "position": [
+   8.35,
+   4.4,
+   4.72
+  ],
+  "target": [
+   10.0,
+   4.4,
+   6.25
+  ],
+  "fov": 70,
+  "exposure": 1.0
+ },
+ {
+  "id": "sara-chambre-2",
+  "title": "Bedroom 2",
+  "titleFr": "Chambre #2",
+  "room": "u-ch2",
+  "level": "upper",
+  "position": [
+   4.2,
+   4.4,
+   5.7
+  ],
+  "target": [
+   7.62,
+   4.4,
+   8.0
+  ],
+  "fov": 64,
+  "exposure": 1.0
+ },
+ {
+  "id": "sara-walkin-2",
+  "title": "Walk-in (bedroom 2)",
+  "titleFr": "Walk-in (chambre #2)",
+  "room": "u-walkin2",
+  "level": "upper",
+  "position": [
+   4.3,
+   4.45,
+   9.2
+  ],
+  "target": [
+   6.2,
+   4.45,
+   10.21
+  ],
+  "fov": 76,
+  "exposure": 1.05
+ },
+ {
+  "id": "sara-chambre-3",
+  "title": "Bedroom 3",
+  "titleFr": "Chambre #3",
+  "room": "u-ch3",
+  "level": "upper",
+  "position": [
+   2.55,
+   4.4,
+   7.4
+  ],
+  "target": [
+   0.3,
+   4.4,
+   10.0
+  ],
+  "fov": 64,
+  "exposure": 0.95
+ },
+ {
+  "id": "sara-chambre-4",
+  "title": "Bedroom 4",
+  "titleFr": "Chambre #4",
+  "room": "u-ch4",
+  "level": "upper",
+  "position": [
+   2.55,
+   4.4,
+   4.2
+  ],
+  "target": [
+   0.0,
+   4.4,
+   6.4
+  ],
+  "fov": 64,
+  "exposure": 0.95
+ },
+ {
+  "id": "sara-sdb-2",
+  "title": "Family bathroom",
+  "titleFr": "Salle de bain #2",
+  "room": "u-sdb2",
+  "level": "upper",
+  "position": [
+   2.21,
+   4.42,
+   2.5
+  ],
+  "target": [
+   2.21,
+   4.42,
+   0.91
+  ],
+  "fov": 72,
+  "exposure": 1.0
+ },
+ {
+  "id": "sara-chambre-1d",
+  "title": "Master bedroom",
+  "titleFr": "Chambre #1 (principale)",
+  "room": "u-ch1",
+  "level": "upper",
+  "position": [
+   8.55,
+   4.4,
+   0.95
+  ],
+  "target": [
+   13.1,
+   4.4,
+   3.0
+  ],
+  "fov": 64,
+  "exposure": 0.95
+ },
+ {
+  "id": "sara-chambre-1e",
+  "title": "Master bedroom",
+  "titleFr": "Chambre #1 (principale)",
+  "room": "u-ch1",
+  "level": "upper",
+  "position": [
+   8.6,
+   4.4,
+   0.75
+  ],
+  "target": [
+   13.11,
+   4.4,
+   2.6
+  ],
+  "fov": 62,
+  "exposure": 0.95
+ },
+ {
+  "id": "sara-walkin-1b",
+  "title": "Master walk-in",
+  "titleFr": "Walk-in (chambre #1)",
+  "room": "u-walkin1",
+  "level": "upper",
+  "position": [
+   6.9,
+   4.48,
+   2.58
+  ],
+  "target": [
+   7.55,
+   4.48,
+   0
+  ],
+  "fov": 72,
+  "exposure": 1.0
+ },
+ {
+  "id": "sara-walkin-1c",
+  "title": "Master walk-in",
+  "titleFr": "Walk-in (chambre #1)",
+  "room": "u-walkin1",
+  "level": "upper",
+  "position": [
+   7.6,
+   4.48,
+   0.95
+  ],
+  "target": [
+   7.32,
+   4.48,
+   0
+  ],
+  "fov": 80,
+  "exposure": 1.0
+ },
+ {
+  "id": "sara-sdb-1c",
+  "title": "Ensuite bathroom",
+  "titleFr": "Salle de bain #1",
+  "room": "u-sdb1",
+  "level": "upper",
+  "position": [
+   7.55,
+   4.4,
+   4.72
+  ],
+  "target": [
+   10.21,
+   4.4,
+   6.05
+  ],
+  "fov": 68,
+  "exposure": 0.9
+ },
+ {
+  "id": "sara-chambre-2b",
+  "title": "Bedroom 2",
+  "titleFr": "Chambre #2",
+  "room": "u-ch2",
+  "level": "upper",
+  "position": [
+   4.75,
+   4.4,
+   6.85
+  ],
+  "target": [
+   7.62,
+   4.4,
+   7.45
+  ],
+  "fov": 64,
+  "exposure": 1.0
+ },
+ {
+  "id": "sara-walkin-2b",
+  "title": "Walk-in (bedroom 2)",
+  "titleFr": "Walk-in (chambre #2)",
+  "room": "u-walkin2",
+  "level": "upper",
+  "position": [
+   3.98,
+   4.49,
+   9.2
+  ],
+  "target": [
+   6.6,
+   4.49,
+   10.21
+  ],
+  "fov": 72,
+  "exposure": 1.05
+ },
+ {
+  "id": "sara-walkin-2c",
+  "title": "Walk-in (bedroom 2)",
+  "titleFr": "Walk-in (chambre #2)",
+  "room": "u-walkin2",
+  "level": "upper",
+  "position": [
+   4.72,
+   4.49,
+   8.55
+  ],
+  "target": [
+   5.71,
+   4.49,
+   10.21
+  ],
+  "fov": 70,
+  "exposure": 1.05
+ },
+ {
+  "id": "sara-chambre-3b",
+  "title": "Bedroom 3",
+  "titleFr": "Chambre #3",
+  "room": "u-ch3",
+  "level": "upper",
+  "position": [
+   2.5,
+   4.45,
+   7.85
+  ],
+  "target": [
+   0.27,
+   4.45,
+   9.86
+  ],
+  "fov": 66,
+  "exposure": 0.95
+ },
+ {
+  "id": "sara-chambre-4b",
+  "title": "Bedroom 4",
+  "titleFr": "Chambre #4",
+  "room": "u-ch4",
+  "level": "upper",
+  "position": [
+   2.68,
+   4.5,
+   6.85
+  ],
+  "target": [
+   0.0,
+   4.5,
+   4.9
+  ],
+  "fov": 64,
+  "exposure": 0.95
+ },
+ {
+  "id": "sara-sdb-2b",
+  "title": "Family bathroom",
+  "titleFr": "Salle de bain #2",
+  "room": "u-sdb2",
+  "level": "upper",
+  "position": [
+   1.98,
+   4.45,
+   2.55
+  ],
+  "target": [
+   2.3,
+   4.45,
+   0.91
+  ],
+  "fov": 70,
+  "exposure": 1.0
+ }
 ]
