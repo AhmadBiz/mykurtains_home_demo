@@ -6,3 +6,5 @@ dist-ssr
 .DS_Store
 screenshots
 *.tsbuildinfo
+dist-*
+photos/drafts
