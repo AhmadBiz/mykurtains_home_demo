@@ -1,982 +1,210 @@
 [
- {
-  "id": "sara-salon-a",
-  "title": "salon-a",
-  "titleFr": "salon-a",
-  "room": "g-salon",
-  "level": "ground",
-  "position": [
-   6.5,
-   1.35,
-   2.3
-  ],
-  "target": [
-   8.6,
-   1.35,
-   0
-  ],
-  "fov": 62,
-  "exposure": 0.85
- },
- {
-  "id": "sara-salon-b",
-  "title": "salon-b",
-  "titleFr": "salon-b",
-  "room": "g-salon",
-  "level": "ground",
-  "position": [
-   7.3,
-   1.4,
-   3.55
-  ],
-  "target": [
-   8.3,
-   1.4,
-   0
-  ],
-  "fov": 62,
-  "exposure": 0.85
- },
- {
-  "id": "sara-salon-c",
-  "title": "salon-c",
-  "titleFr": "salon-c",
-  "room": "g-salon",
-  "level": "ground",
-  "position": [
-   12.4,
-   1.4,
-   3.5
-  ],
-  "target": [
-   8.0,
-   1.4,
-   0.3
-  ],
-  "fov": 62,
-  "exposure": 0.85
- },
- {
-  "id": "sara-sam-a",
-  "title": "sam-a",
-  "titleFr": "sam-a",
-  "room": "g-sam",
-  "level": "ground",
-  "position": [
-   9.3,
-   1.35,
-   2.95
-  ],
-  "target": [
-   13.1,
-   1.35,
-   1.6
-  ],
-  "fov": 62,
-  "exposure": 0.85
- },
- {
-  "id": "sara-sam-b",
-  "title": "sam-b",
-  "titleFr": "sam-b",
-  "room": "g-sam",
-  "level": "ground",
-  "position": [
-   10.0,
-   1.35,
-   3.45
-  ],
-  "target": [
-   13.11,
-   1.35,
-   0.6
-  ],
-  "fov": 62,
-  "exposure": 0.85
- },
- {
-  "id": "sara-sam-c",
-  "title": "sam-c",
-  "titleFr": "sam-c",
-  "room": "g-sam",
-  "level": "ground",
-  "position": [
-   10.0,
-   1.35,
-   0.95
-  ],
-  "target": [
-   13.11,
-   1.35,
-   3.2
-  ],
-  "fov": 62,
-  "exposure": 0.85
- },
- {
-  "id": "sara-cuisine-a",
-  "title": "cuisine-a",
-  "titleFr": "cuisine-a",
-  "room": "g-cuisine",
-  "level": "ground",
-  "position": [
-   8.7,
-   1.4,
-   2.8
-  ],
-  "target": [
-   10.0,
-   1.4,
-   6.0
-  ],
-  "fov": 62,
-  "exposure": 0.9
- },
- {
-  "id": "sara-cuisine-b",
-  "title": "cuisine-b",
-  "titleFr": "cuisine-b",
-  "room": "g-cuisine",
-  "level": "ground",
-  "position": [
-   6.7,
-   1.4,
-   3.6
-  ],
-  "target": [
-   10.21,
-   1.4,
-   5.6
-  ],
-  "fov": 62,
-  "exposure": 0.9
- },
- {
-  "id": "sara-sdeau-a",
-  "title": "sdeau-a",
-  "titleFr": "sdeau-a",
-  "room": "g-sdeau",
-  "level": "ground",
-  "position": [
-   2.36,
-   1.3,
-   2.55
-  ],
-  "target": [
-   2.36,
-   1.3,
-   0.91
-  ],
-  "fov": 75,
-  "exposure": 1.0
- },
- {
-  "id": "sara-escalier-a",
-  "title": "escalier-a",
-  "titleFr": "escalier-a",
-  "room": "g-escalier",
-  "level": "ground",
-  "position": [
-   3.4,
-   2.78,
-   2.2
-  ],
-  "target": [
-   5.0,
-   2.78,
-   0.0
-  ],
-  "fov": 72,
-  "exposure": 0.8
- },
- {
-  "id": "sara-escalier-b",
-  "title": "escalier-b",
-  "titleFr": "escalier-b",
-  "room": "g-escalier",
-  "level": "ground",
-  "position": [
-   3.4,
-   2.78,
-   2.25
-  ],
-  "target": [
-   5.6,
-   2.78,
-   0.5
-  ],
-  "fov": 72,
-  "exposure": 0.8
- },
- {
-  "id": "sara-ext-a",
-  "title": "ext-a",
-  "titleFr": "ext-a",
-  "room": "exterior",
-  "level": "ground",
-  "position": [
-   -13,
-   0.53,
-   -11
-  ],
-  "target": [
-   6.5,
-   0.53,
-   5
-  ],
-  "fov": 55,
-  "exposure": 0.85
- },
- {
-  "id": "sara-ch5-a",
-  "title": "ch5-a",
-  "titleFr": "ch5-a",
-  "room": "b-ch5",
-  "level": "basement",
-  "position": [
-   7.95,
-   -1.343,
-   2.95
-  ],
-  "target": [
-   9.4,
-   -1.343,
-   0
-  ],
-  "fov": 65,
-  "exposure": 1.15
- },
- {
-  "id": "sara-ch5-b",
-  "title": "ch5-b",
-  "titleFr": "ch5-b",
-  "room": "b-ch5",
-  "level": "basement",
-  "position": [
-   8.1,
-   -1.343,
-   2.1
-  ],
-  "target": [
-   9.9,
-   -1.343,
-   0
-  ],
-  "fov": 65,
-  "exposure": 1.15
- },
- {
-  "id": "sara-ch6-a",
-  "title": "ch6-a",
-  "titleFr": "ch6-a",
-  "room": "b-ch6",
-  "level": "basement",
-  "position": [
-   10.65,
-   -1.343,
-   3.05
-  ],
-  "target": [
-   13.11,
-   -1.343,
-   0
-  ],
-  "fov": 65,
-  "exposure": 1.15
- },
- {
-  "id": "sara-familiale-a",
-  "title": "familiale-a",
-  "titleFr": "familiale-a",
-  "room": "b-familiale",
-  "level": "basement",
-  "position": [
-   8.0,
-   -1.393,
-   3.7
-  ],
-  "target": [
-   12.5,
-   -1.393,
-   6.25
-  ],
-  "fov": 62,
-  "exposure": 1.15
- },
- {
-  "id": "sara-sdb3-a",
-  "title": "sdb3-a",
-  "titleFr": "sdb3-a",
-  "room": "b-sdb3",
-  "level": "basement",
-  "position": [
-   2.36,
-   -1.393,
-   3.42
-  ],
-  "target": [
-   2.36,
-   -1.393,
-   0.91
-  ],
-  "fov": 72,
-  "exposure": 1.1
- },
- {
-  "id": "sara-salon-d",
-  "title": "salon-d",
-  "titleFr": "salon-d",
-  "room": "g-salon",
-  "level": "ground",
-  "position": [
-   7.0,
-   1.45,
-   3.6
-  ],
-  "target": [
-   8.6,
-   1.45,
-   0
-  ],
-  "fov": 62,
-  "exposure": 0.85
- },
- {
-  "id": "sara-salon-e",
-  "title": "salon-e",
-  "titleFr": "salon-e",
-  "room": "g-salon",
-  "level": "ground",
-  "position": [
-   6.75,
-   1.45,
-   3.6
-  ],
-  "target": [
-   8.4,
-   1.45,
-   0
-  ],
-  "fov": 62,
-  "exposure": 0.85
- },
- {
-  "id": "sara-sam-d",
-  "title": "sam-d",
-  "titleFr": "sam-d",
-  "room": "g-sam",
-  "level": "ground",
-  "position": [
-   10.05,
-   1.45,
-   3.45
-  ],
-  "target": [
-   13.11,
-   1.45,
-   0.8
-  ],
-  "fov": 62,
-  "exposure": 0.85
- },
- {
-  "id": "sara-cuisine-c",
-  "title": "cuisine-c",
-  "titleFr": "cuisine-c",
-  "room": "g-cuisine",
-  "level": "ground",
-  "position": [
-   8.4,
-   1.45,
-   3.2
-  ],
-  "target": [
-   10.21,
-   1.45,
-   5.6
-  ],
-  "fov": 62,
-  "exposure": 0.9
- },
- {
-  "id": "sara-cuisine-d",
-  "title": "cuisine-d",
-  "titleFr": "cuisine-d",
-  "room": "g-cuisine",
-  "level": "ground",
-  "position": [
-   8.1,
-   1.45,
-   2.75
-  ],
-  "target": [
-   10.3,
-   1.45,
-   5.7
-  ],
-  "fov": 62,
-  "exposure": 0.9
- },
- {
-  "id": "sara-sdeau-b",
-  "title": "sdeau-b",
-  "titleFr": "sdeau-b",
-  "room": "g-sdeau",
-  "level": "ground",
-  "position": [
-   2.2,
-   1.3,
-   2.55
-  ],
-  "target": [
-   2.75,
-   1.3,
-   0.91
-  ],
-  "fov": 65,
-  "exposure": 1.0
- },
- {
-  "id": "sara-escalier-c",
-  "title": "escalier-c",
-  "titleFr": "escalier-c",
-  "room": "g-escalier",
-  "level": "ground",
-  "position": [
-   3.4,
-   2.74,
-   1.7
-  ],
-  "target": [
-   5.6,
-   2.74,
-   0.2
-  ],
-  "fov": 80,
-  "exposure": 0.8
- },
- {
-  "id": "sara-ext-b",
-  "title": "ext-b",
-  "titleFr": "ext-b",
-  "room": "exterior",
-  "level": "ground",
-  "position": [
-   -17,
-   0.53,
-   15
-  ],
-  "target": [
-   6.5,
-   0.53,
-   5.1
-  ],
-  "fov": 50,
-  "exposure": 0.85
- },
- {
-  "id": "sara-ext-c",
-  "title": "ext-c",
-  "titleFr": "ext-c",
-  "room": "exterior",
-  "level": "ground",
-  "position": [
-   -18,
-   0.53,
-   12
-  ],
-  "target": [
-   6.5,
-   0.53,
-   4
-  ],
-  "fov": 50,
-  "exposure": 0.85
- },
- {
-  "id": "sara-ch5-c",
-  "title": "ch5-c",
-  "titleFr": "ch5-c",
-  "room": "b-ch5",
-  "level": "basement",
-  "position": [
-   10.0,
-   -1.343,
-   3.0
-  ],
-  "target": [
-   8.9,
-   -1.343,
-   0
-  ],
-  "fov": 65,
-  "exposure": 1.15
- },
- {
-  "id": "sara-ch6-b",
-  "title": "ch6-b",
-  "titleFr": "ch6-b",
-  "room": "b-ch6",
-  "level": "basement",
-  "position": [
-   10.75,
-   -1.343,
-   3.0
-  ],
-  "target": [
-   13.0,
-   -1.343,
-   0.3
-  ],
-  "fov": 62,
-  "exposure": 1.15
- },
- {
-  "id": "sara-familiale-b",
-  "title": "familiale-b",
-  "titleFr": "familiale-b",
-  "room": "b-familiale",
-  "level": "basement",
-  "position": [
-   8.05,
-   -1.3929999999999998,
-   3.75
-  ],
-  "target": [
-   13.11,
-   -1.3929999999999998,
-   5.6
-  ],
-  "fov": 62,
-  "exposure": 1.15,
-  "overrides": {
-   "w-familiale-e": {
-    "open": 0.3
-   },
-   "w-familiale-s": {
-    "open": 0.3
-   }
+  {
+    "id": "sara-salon",
+    "title": "Living room",
+    "titleFr": "Salon",
+    "room": "g-salon",
+    "level": "ground",
+    "position": [
+      7.0,
+      1.45,
+      3.6
+    ],
+    "target": [
+      8.6,
+      1.45,
+      0
+    ],
+    "fov": 62,
+    "exposure": 0.85
+  },
+  {
+    "id": "sara-salle-a-manger",
+    "title": "Dining room",
+    "titleFr": "Salle à manger",
+    "room": "g-sam",
+    "level": "ground",
+    "position": [
+      10.05,
+      1.45,
+      3.45
+    ],
+    "target": [
+      13.11,
+      1.45,
+      0.8
+    ],
+    "fov": 62,
+    "exposure": 0.85
+  },
+  {
+    "id": "sara-cuisine",
+    "title": "Kitchen",
+    "titleFr": "Cuisine",
+    "room": "g-cuisine",
+    "level": "ground",
+    "position": [
+      7.5,
+      1.45,
+      3.6
+    ],
+    "target": [
+      10.21,
+      1.45,
+      5.4
+    ],
+    "fov": 62,
+    "exposure": 0.9
+  },
+  {
+    "id": "sara-salle-deau",
+    "title": "Powder room",
+    "titleFr": "Salle d'eau",
+    "room": "g-sdeau",
+    "level": "ground",
+    "position": [
+      2.15,
+      1.45,
+      2.55
+    ],
+    "target": [
+      2.6,
+      1.45,
+      0.91
+    ],
+    "fov": 68,
+    "exposure": 0.92
+  },
+  {
+    "id": "sara-escalier",
+    "title": "Stairwell",
+    "titleFr": "Cage d'escalier",
+    "room": "g-escalier",
+    "level": "ground",
+    "position": [
+      3.35,
+      2.97,
+      2.0
+    ],
+    "target": [
+      5.4,
+      2.97,
+      0.8
+    ],
+    "fov": 80,
+    "exposure": 0.75,
+    "overrides": {
+      "w-escalier": {
+        "open": 0.4
+      }
+    }
+  },
+  {
+    "id": "sara-exterieur",
+    "title": "Exterior — street view",
+    "titleFr": "Extérieur — vue de la rue",
+    "room": "exterior",
+    "level": "ground",
+    "position": [
+      -12.3,
+      0.53,
+      17.5
+    ],
+    "target": [
+      5.5,
+      0.53,
+      4.5
+    ],
+    "fov": 52,
+    "exposure": 0.85
+  },
+  {
+    "id": "sara-chambre-5",
+    "title": "Bedroom 5",
+    "titleFr": "Chambre #5",
+    "room": "b-ch5",
+    "level": "basement",
+    "position": [
+      10.0,
+      -1.343,
+      3.0
+    ],
+    "target": [
+      8.75,
+      -1.343,
+      0
+    ],
+    "fov": 60,
+    "exposure": 1.15
+  },
+  {
+    "id": "sara-chambre-6",
+    "title": "Bedroom 6",
+    "titleFr": "Chambre #6",
+    "room": "b-ch6",
+    "level": "basement",
+    "position": [
+      10.75,
+      -1.393,
+      3.0
+    ],
+    "target": [
+      13.0,
+      -1.393,
+      0.3
+    ],
+    "fov": 60,
+    "exposure": 1.15
+  },
+  {
+    "id": "sara-salle-familiale",
+    "title": "Family room",
+    "titleFr": "Salle familiale",
+    "room": "b-familiale",
+    "level": "basement",
+    "position": [
+      8.7,
+      -1.393,
+      4.1
+    ],
+    "target": [
+      12.6,
+      -1.393,
+      6.25
+    ],
+    "fov": 56,
+    "exposure": 1.08,
+    "overrides": {
+      "w-familiale-e": {
+        "open": 0.35
+      },
+      "w-familiale-s": {
+        "open": 0.35
+      }
+    }
+  },
+  {
+    "id": "sara-salle-de-bain-3",
+    "title": "Bathroom 3",
+    "titleFr": "Salle de bain #3",
+    "room": "b-sdb3",
+    "level": "basement",
+    "position": [
+      2.45,
+      -1.393,
+      3.42
+    ],
+    "target": [
+      2.9,
+      -1.393,
+      0.91
+    ],
+    "fov": 56,
+    "exposure": 0.95,
+    "overrides": {
+      "w-sdb3-n": {
+        "open": 0.25
+      }
+    }
   }
- },
- {
-  "id": "sara-sdb3-b",
-  "title": "sdb3-b",
-  "titleFr": "sdb3-b",
-  "room": "b-sdb3",
-  "level": "basement",
-  "position": [
-   2.75,
-   -1.3929999999999998,
-   3.42
-  ],
-  "target": [
-   2.2,
-   -1.3929999999999998,
-   0.91
-  ],
-  "fov": 70,
-  "exposure": 1.1
- },
- {
-  "id": "sara-cuisine-e",
-  "title": "cuisine-e",
-  "titleFr": "cuisine-e",
-  "room": "g-cuisine",
-  "level": "ground",
-  "position": [
-   7.3,
-   1.45,
-   3.6
-  ],
-  "target": [
-   10.21,
-   1.45,
-   5.4
-  ],
-  "fov": 62,
-  "exposure": 0.9
- },
- {
-  "id": "sara-sdeau-c",
-  "title": "sdeau-c",
-  "titleFr": "sdeau-c",
-  "room": "g-sdeau",
-  "level": "ground",
-  "position": [
-   2.15,
-   1.45,
-   2.55
-  ],
-  "target": [
-   2.7,
-   1.45,
-   0.91
-  ],
-  "fov": 68,
-  "exposure": 0.95
- },
- {
-  "id": "sara-escalier-d",
-  "title": "escalier-d",
-  "titleFr": "escalier-d",
-  "room": "g-escalier",
-  "level": "ground",
-  "position": [
-   6.9,
-   1.4,
-   1.37
-  ],
-  "target": [
-   3.2,
-   1.4,
-   1.1
-  ],
-  "fov": 70,
-  "exposure": 0.85
- },
- {
-  "id": "sara-escalier-e",
-  "title": "escalier-e",
-  "titleFr": "escalier-e",
-  "room": "g-escalier",
-  "level": "ground",
-  "position": [
-   6.7,
-   1.45,
-   1.6
-  ],
-  "target": [
-   3.6,
-   1.45,
-   0.75
-  ],
-  "fov": 66,
-  "exposure": 0.85
- },
- {
-  "id": "sara-ext-d",
-  "title": "ext-d",
-  "titleFr": "ext-d",
-  "room": "exterior",
-  "level": "ground",
-  "position": [
-   -11,
-   0.53,
-   16.5
-  ],
-  "target": [
-   5.5,
-   0.53,
-   4.5
-  ],
-  "fov": 55,
-  "exposure": 0.85
- },
- {
-  "id": "sara-ext-e",
-  "title": "ext-e",
-  "titleFr": "ext-e",
-  "room": "exterior",
-  "level": "ground",
-  "position": [
-   -12.3,
-   0.53,
-   17.5
-  ],
-  "target": [
-   5.5,
-   0.53,
-   4.5
-  ],
-  "fov": 52,
-  "exposure": 0.85
- },
- {
-  "id": "sara-ch5-d",
-  "title": "ch5-d",
-  "titleFr": "ch5-d",
-  "room": "b-ch5",
-  "level": "basement",
-  "position": [
-   10.0,
-   -1.343,
-   3.0
-  ],
-  "target": [
-   8.75,
-   -1.343,
-   0
-  ],
-  "fov": 60,
-  "exposure": 1.15
- },
- {
-  "id": "sara-ch6-c",
-  "title": "ch6-c",
-  "titleFr": "ch6-c",
-  "room": "b-ch6",
-  "level": "basement",
-  "position": [
-   10.75,
-   -1.3929999999999998,
-   3.0
-  ],
-  "target": [
-   13.0,
-   -1.3929999999999998,
-   0.3
-  ],
-  "fov": 60,
-  "exposure": 1.15
- },
- {
-  "id": "sara-familiale-c",
-  "title": "familiale-c",
-  "titleFr": "familiale-c",
-  "room": "b-familiale",
-  "level": "basement",
-  "position": [
-   8.7,
-   -1.3929999999999998,
-   4.1
-  ],
-  "target": [
-   12.5,
-   -1.3929999999999998,
-   6.25
-  ],
-  "fov": 62,
-  "exposure": 1.05,
-  "overrides": {
-   "w-familiale-e": {
-    "open": 0.35
-   },
-   "w-familiale-s": {
-    "open": 0.35
-   }
-  }
- },
- {
-  "id": "sara-sdb3-c",
-  "title": "sdb3-c",
-  "titleFr": "sdb3-c",
-  "room": "b-sdb3",
-  "level": "basement",
-  "position": [
-   1.85,
-   -1.3929999999999998,
-   3.42
-  ],
-  "target": [
-   2.5,
-   -1.3929999999999998,
-   0.91
-  ],
-  "fov": 68,
-  "exposure": 1.1,
-  "overrides": {
-   "w-sdb3-n": {
-    "open": 0.25
-   }
-  }
- },
- {
-  "id": "sara-escalier-f",
-  "title": "escalier-f",
-  "titleFr": "escalier-f",
-  "room": "g-escalier",
-  "level": "ground",
-  "position": [
-   3.35,
-   2.97,
-   2.0
-  ],
-  "target": [
-   5.2,
-   2.97,
-   0.5
-  ],
-  "fov": 80,
-  "exposure": 0.85,
-  "overrides": {
-   "w-escalier": {
-    "open": 0.25
-   }
-  }
- },
- {
-  "id": "sara-escalier-g",
-  "title": "escalier-g",
-  "titleFr": "escalier-g",
-  "room": "g-escalier",
-  "level": "ground",
-  "position": [
-   3.35,
-   2.97,
-   2.0
-  ],
-  "target": [
-   5.6,
-   2.97,
-   0.91
-  ],
-  "fov": 76,
-  "exposure": 0.85
- },
- {
-  "id": "sara-cuisine-f",
-  "title": "cuisine-f",
-  "titleFr": "cuisine-f",
-  "room": "g-cuisine",
-  "level": "ground",
-  "position": [
-   7.5,
-   1.45,
-   3.6
-  ],
-  "target": [
-   10.21,
-   1.45,
-   5.4
-  ],
-  "fov": 62,
-  "exposure": 0.9
- },
- {
-  "id": "sara-sdeau-d",
-  "title": "sdeau-d",
-  "titleFr": "sdeau-d",
-  "room": "g-sdeau",
-  "level": "ground",
-  "position": [
-   2.15,
-   1.45,
-   2.55
-  ],
-  "target": [
-   2.6,
-   1.45,
-   0.91
-  ],
-  "fov": 68,
-  "exposure": 0.95
- },
- {
-  "id": "sara-familiale-d",
-  "title": "familiale-d",
-  "titleFr": "familiale-d",
-  "room": "b-familiale",
-  "level": "basement",
-  "position": [
-   8.7,
-   -1.3929999999999998,
-   4.1
-  ],
-  "target": [
-   12.6,
-   -1.3929999999999998,
-   6.25
-  ],
-  "fov": 56,
-  "exposure": 1.08,
-  "overrides": {
-   "w-familiale-e": {
-    "open": 0.35
-   },
-   "w-familiale-s": {
-    "open": 0.35
-   }
-  }
- },
- {
-  "id": "sara-sdb3-d",
-  "title": "sdb3-d",
-  "titleFr": "sdb3-d",
-  "room": "b-sdb3",
-  "level": "basement",
-  "position": [
-   2.45,
-   -1.3929999999999998,
-   3.42
-  ],
-  "target": [
-   2.68,
-   -1.3929999999999998,
-   0.91
-  ],
-  "fov": 56,
-  "exposure": 1.1,
-  "overrides": {
-   "w-sdb3-n": {
-    "open": 0.25
-   }
-  }
- },
- {
-  "id": "sara-escalier-h",
-  "title": "escalier-h",
-  "titleFr": "escalier-h",
-  "room": "g-escalier",
-  "level": "ground",
-  "position": [
-   3.35,
-   2.97,
-   2.0
-  ],
-  "target": [
-   5.0,
-   2.97,
-   0.4
-  ],
-  "fov": 80,
-  "exposure": 0.75
- },
- {
-  "id": "sara-escalier-i",
-  "title": "escalier-i",
-  "titleFr": "escalier-i",
-  "room": "g-escalier",
-  "level": "ground",
-  "position": [
-   3.35,
-   2.97,
-   2.0
-  ],
-  "target": [
-   5.0,
-   2.97,
-   0.4
-  ],
-  "fov": 80,
-  "exposure": 0.75,
-  "overrides": {
-   "w-escalier": {
-    "open": 0.4
-   }
-  }
- },
- {
-  "id": "sara-sdb3-e",
-  "title": "sdb3-e",
-  "titleFr": "sdb3-e",
-  "room": "b-sdb3",
-  "level": "basement",
-  "position": [
-   2.45,
-   -1.3929999999999998,
-   3.42
-  ],
-  "target": [
-   2.9,
-   -1.3929999999999998,
-   0.91
-  ],
-  "fov": 56,
-  "exposure": 0.95,
-  "overrides": {
-   "w-sdb3-n": {
-    "open": 0.25
-   }
-  }
- }
 ]
