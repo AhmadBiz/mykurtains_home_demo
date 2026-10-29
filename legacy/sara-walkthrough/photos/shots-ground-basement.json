@@ -911,5 +911,72 @@
     "open": 0.25
    }
   }
+ },
+ {
+  "id": "sara-escalier-h",
+  "title": "escalier-h",
+  "titleFr": "escalier-h",
+  "room": "g-escalier",
+  "level": "ground",
+  "position": [
+   3.35,
+   2.97,
+   2.0
+  ],
+  "target": [
+   5.0,
+   2.97,
+   0.4
+  ],
+  "fov": 80,
+  "exposure": 0.75
+ },
+ {
+  "id": "sara-escalier-i",
+  "title": "escalier-i",
+  "titleFr": "escalier-i",
+  "room": "g-escalier",
+  "level": "ground",
+  "position": [
+   3.35,
+   2.97,
+   2.0
+  ],
+  "target": [
+   5.0,
+   2.97,
+   0.4
+  ],
+  "fov": 80,
+  "exposure": 0.75,
+  "overrides": {
+   "w-escalier": {
+    "open": 0.4
+   }
+  }
+ },
+ {
+  "id": "sara-sdb3-e",
+  "title": "sdb3-e",
+  "titleFr": "sdb3-e",
+  "room": "b-sdb3",
+  "level": "basement",
+  "position": [
+   2.45,
+   -1.3929999999999998,
+   3.42
+  ],
+  "target": [
+   2.9,
+   -1.3929999999999998,
+   0.91
+  ],
+  "fov": 56,
+  "exposure": 0.95,
+  "overrides": {
+   "w-sdb3-n": {
+    "open": 0.25
+   }
+  }
  }
 ]
