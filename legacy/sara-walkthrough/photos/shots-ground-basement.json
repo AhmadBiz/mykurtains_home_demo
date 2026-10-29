@@ -1,0 +1,325 @@
+[
+ {
+  "id": "sara-salon-a",
+  "title": "salon-a",
+  "titleFr": "salon-a",
+  "room": "g-salon",
+  "level": "ground",
+  "position": [
+   6.5,
+   1.35,
+   2.3
+  ],
+  "target": [
+   8.6,
+   1.35,
+   0
+  ],
+  "fov": 62,
+  "exposure": 0.85
+ },
+ {
+  "id": "sara-salon-b",
+  "title": "salon-b",
+  "titleFr": "salon-b",
+  "room": "g-salon",
+  "level": "ground",
+  "position": [
+   7.3,
+   1.4,
+   3.55
+  ],
+  "target": [
+   8.3,
+   1.4,
+   0
+  ],
+  "fov": 62,
+  "exposure": 0.85
+ },
+ {
+  "id": "sara-salon-c",
+  "title": "salon-c",
+  "titleFr": "salon-c",
+  "room": "g-salon",
+  "level": "ground",
+  "position": [
+   12.4,
+   1.4,
+   3.5
+  ],
+  "target": [
+   8.0,
+   1.4,
+   0.3
+  ],
+  "fov": 62,
+  "exposure": 0.85
+ },
+ {
+  "id": "sara-sam-a",
+  "title": "sam-a",
+  "titleFr": "sam-a",
+  "room": "g-sam",
+  "level": "ground",
+  "position": [
+   9.3,
+   1.35,
+   2.95
+  ],
+  "target": [
+   13.1,
+   1.35,
+   1.6
+  ],
+  "fov": 62,
+  "exposure": 0.85
+ },
+ {
+  "id": "sara-sam-b",
+  "title": "sam-b",
+  "titleFr": "sam-b",
+  "room": "g-sam",
+  "level": "ground",
+  "position": [
+   10.0,
+   1.35,
+   3.45
+  ],
+  "target": [
+   13.11,
+   1.35,
+   0.6
+  ],
+  "fov": 62,
+  "exposure": 0.85
+ },
+ {
+  "id": "sara-sam-c",
+  "title": "sam-c",
+  "titleFr": "sam-c",
+  "room": "g-sam",
+  "level": "ground",
+  "position": [
+   10.0,
+   1.35,
+   0.95
+  ],
+  "target": [
+   13.11,
+   1.35,
+   3.2
+  ],
+  "fov": 62,
+  "exposure": 0.85
+ },
+ {
+  "id": "sara-cuisine-a",
+  "title": "cuisine-a",
+  "titleFr": "cuisine-a",
+  "room": "g-cuisine",
+  "level": "ground",
+  "position": [
+   8.7,
+   1.4,
+   2.8
+  ],
+  "target": [
+   10.0,
+   1.4,
+   6.0
+  ],
+  "fov": 62,
+  "exposure": 0.9
+ },
+ {
+  "id": "sara-cuisine-b",
+  "title": "cuisine-b",
+  "titleFr": "cuisine-b",
+  "room": "g-cuisine",
+  "level": "ground",
+  "position": [
+   6.7,
+   1.4,
+   3.6
+  ],
+  "target": [
+   10.21,
+   1.4,
+   5.6
+  ],
+  "fov": 62,
+  "exposure": 0.9
+ },
+ {
+  "id": "sara-sdeau-a",
+  "title": "sdeau-a",
+  "titleFr": "sdeau-a",
+  "room": "g-sdeau",
+  "level": "ground",
+  "position": [
+   2.36,
+   1.3,
+   2.55
+  ],
+  "target": [
+   2.36,
+   1.3,
+   0.91
+  ],
+  "fov": 75,
+  "exposure": 1.0
+ },
+ {
+  "id": "sara-escalier-a",
+  "title": "escalier-a",
+  "titleFr": "escalier-a",
+  "room": "g-escalier",
+  "level": "ground",
+  "position": [
+   3.4,
+   2.78,
+   2.2
+  ],
+  "target": [
+   5.0,
+   2.78,
+   0.0
+  ],
+  "fov": 72,
+  "exposure": 0.8
+ },
+ {
+  "id": "sara-escalier-b",
+  "title": "escalier-b",
+  "titleFr": "escalier-b",
+  "room": "g-escalier",
+  "level": "ground",
+  "position": [
+   3.4,
+   2.78,
+   2.25
+  ],
+  "target": [
+   5.6,
+   2.78,
+   0.5
+  ],
+  "fov": 72,
+  "exposure": 0.8
+ },
+ {
+  "id": "sara-ext-a",
+  "title": "ext-a",
+  "titleFr": "ext-a",
+  "room": "exterior",
+  "level": "ground",
+  "position": [
+   -13,
+   0.53,
+   -11
+  ],
+  "target": [
+   6.5,
+   0.53,
+   5
+  ],
+  "fov": 55,
+  "exposure": 0.85
+ },
+ {
+  "id": "sara-ch5-a",
+  "title": "ch5-a",
+  "titleFr": "ch5-a",
+  "room": "b-ch5",
+  "level": "basement",
+  "position": [
+   7.95,
+   -1.343,
+   2.95
+  ],
+  "target": [
+   9.4,
+   -1.343,
+   0
+  ],
+  "fov": 65,
+  "exposure": 1.15
+ },
+ {
+  "id": "sara-ch5-b",
+  "title": "ch5-b",
+  "titleFr": "ch5-b",
+  "room": "b-ch5",
+  "level": "basement",
+  "position": [
+   8.1,
+   -1.343,
+   2.1
+  ],
+  "target": [
+   9.9,
+   -1.343,
+   0
+  ],
+  "fov": 65,
+  "exposure": 1.15
+ },
+ {
+  "id": "sara-ch6-a",
+  "title": "ch6-a",
+  "titleFr": "ch6-a",
+  "room": "b-ch6",
+  "level": "basement",
+  "position": [
+   10.65,
+   -1.343,
+   3.05
+  ],
+  "target": [
+   13.11,
+   -1.343,
+   0
+  ],
+  "fov": 65,
+  "exposure": 1.15
+ },
+ {
+  "id": "sara-familiale-a",
+  "title": "familiale-a",
+  "titleFr": "familiale-a",
+  "room": "b-familiale",
+  "level": "basement",
+  "position": [
+   8.0,
+   -1.393,
+   3.7
+  ],
+  "target": [
+   12.5,
+   -1.393,
+   6.25
+  ],
+  "fov": 62,
+  "exposure": 1.15
+ },
+ {
+  "id": "sara-sdb3-a",
+  "title": "sdb3-a",
+  "titleFr": "sdb3-a",
+  "room": "b-sdb3",
+  "level": "basement",
+  "position": [
+   2.36,
+   -1.393,
+   3.42
+  ],
+  "target": [
+   2.36,
+   -1.393,
+   0.91
+  ],
+  "fov": 72,
+  "exposure": 1.1
+ }
+]
