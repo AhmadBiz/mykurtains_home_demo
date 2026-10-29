@@ -1,26 +1,342 @@
 [
-  {
-    "id": "tmpgb-escalier-b",
-    "title": "t",
-    "titleFr": "t",
-    "room": "g-escalier",
-    "level": "ground",
-    "position": [
-      3.42,
-      3.0,
-      2.38
-    ],
-    "target": [
-      4.85,
-      3.0,
-      1.0
-    ],
-    "fov": 70,
-    "exposure": 0.8,
-    "overrides": {
-      "w-escalier": {
-        "open": 0.2
-      }
-    }
+ {
+  "id": "tmpgb-esc-c",
+  "title": "t",
+  "titleFr": "t",
+  "room": "g-escalier",
+  "level": "ground",
+  "position": [
+   3.33,
+   2.97,
+   2.58
+  ],
+  "target": [
+   4.75,
+   2.97,
+   1.05
+  ],
+  "fov": 66,
+  "exposure": 0.8,
+  "shift": 0.1,
+  "overrides": {
+   "w-escalier": {
+    "open": 0.3
+   }
   }
+ },
+ {
+  "id": "tmpgb-esc-d",
+  "title": "t",
+  "titleFr": "t",
+  "room": "g-escalier",
+  "level": "ground",
+  "position": [
+   3.33,
+   2.97,
+   2.58
+  ],
+  "target": [
+   4.95,
+   2.97,
+   1.25
+  ],
+  "fov": 62,
+  "exposure": 0.8,
+  "shift": 0.12,
+  "overrides": {
+   "w-escalier": {
+    "open": 0.3
+   }
+  }
+ },
+ {
+  "id": "tmpgb-esc-e",
+  "title": "t",
+  "titleFr": "t",
+  "room": "g-escalier",
+  "level": "ground",
+  "position": [
+   3.45,
+   3.0,
+   1.62
+  ],
+  "target": [
+   5.6,
+   3.0,
+   0.8
+  ],
+  "fov": 70,
+  "exposure": 0.8,
+  "shift": 0.1,
+  "overrides": {
+   "w-escalier": {
+    "open": 0.35
+   }
+  }
+ },
+ {
+  "id": "tmpgb-fam-a",
+  "title": "t",
+  "titleFr": "t",
+  "room": "b-familiale",
+  "level": "basement",
+  "position": [
+   7.95,
+   -1.343,
+   4.75
+  ],
+  "target": [
+   13.11,
+   -1.343,
+   5.0
+  ],
+  "fov": 56,
+  "exposure": 1.05,
+  "overrides": {
+   "w-familiale-e": {
+    "open": 0.2
+   },
+   "w-familiale-s": {
+    "open": 0.2
+   }
+  }
+ },
+ {
+  "id": "tmpgb-fam-b",
+  "title": "t",
+  "titleFr": "t",
+  "room": "b-familiale",
+  "level": "basement",
+  "position": [
+   8.05,
+   -1.293,
+   3.95
+  ],
+  "target": [
+   13.11,
+   -1.293,
+   5.7
+  ],
+  "fov": 56,
+  "exposure": 1.05,
+  "overrides": {
+   "w-familiale-e": {
+    "open": 0.2
+   },
+   "w-familiale-s": {
+    "open": 0.2
+   }
+  }
+ },
+ {
+  "id": "tmpgb-sdb3-a",
+  "title": "t",
+  "titleFr": "t",
+  "room": "b-sdb3",
+  "level": "basement",
+  "position": [
+   2.85,
+   -1.493,
+   3.45
+  ],
+  "target": [
+   2.38,
+   -1.493,
+   0.91
+  ],
+  "fov": 50,
+  "exposure": 0.9,
+  "shift": 0.18,
+  "overrides": {
+   "w-sdb3-n": {
+    "open": 0.15
+   }
+  }
+ },
+ {
+  "id": "tmpgb-sdb3-b",
+  "title": "t",
+  "titleFr": "t",
+  "room": "b-sdb3",
+  "level": "basement",
+  "position": [
+   2.36,
+   -1.493,
+   3.5
+  ],
+  "target": [
+   2.36,
+   -1.493,
+   0.91
+  ],
+  "fov": 46,
+  "exposure": 0.9,
+  "shift": 0.2,
+  "overrides": {
+   "w-sdb3-n": {
+    "open": 0.15
+   }
+  }
+ },
+ {
+  "id": "tmpgb-sdb3-c",
+  "title": "t",
+  "titleFr": "t",
+  "room": "b-sdb3",
+  "level": "basement",
+  "position": [
+   2.85,
+   -1.293,
+   3.45
+  ],
+  "target": [
+   2.3,
+   -1.293,
+   0.91
+  ],
+  "fov": 52,
+  "exposure": 0.9,
+  "overrides": {
+   "w-sdb3-n": {
+    "open": 0.15
+   }
+  }
+ },
+ {
+  "id": "tmpgb-ext-a",
+  "title": "t",
+  "titleFr": "t",
+  "room": "exterior",
+  "level": "ground",
+  "position": [
+   -7.6,
+   0.53,
+   14.0
+  ],
+  "target": [
+   5.5,
+   0.53,
+   4.6
+  ],
+  "fov": 50,
+  "exposure": 0.85,
+  "shift": 0.2
+ },
+ {
+  "id": "tmpgb-ext-b",
+  "title": "t",
+  "titleFr": "t",
+  "room": "exterior",
+  "level": "ground",
+  "position": [
+   -8.6,
+   0.53,
+   15.0
+  ],
+  "target": [
+   5.5,
+   0.53,
+   4.6
+  ],
+  "fov": 50,
+  "exposure": 0.85,
+  "shift": 0.18
+ },
+ {
+  "id": "tmpgb-sde-a",
+  "title": "t",
+  "titleFr": "t",
+  "room": "g-sdeau",
+  "level": "ground",
+  "position": [
+   2.15,
+   1.36,
+   2.6
+  ],
+  "target": [
+   2.62,
+   1.36,
+   0.91
+  ],
+  "fov": 64,
+  "exposure": 0.92
+ },
+ {
+  "id": "tmpgb-sde-b",
+  "title": "t",
+  "titleFr": "t",
+  "room": "g-sdeau",
+  "level": "ground",
+  "position": [
+   2.15,
+   1.3,
+   2.6
+  ],
+  "target": [
+   2.55,
+   1.3,
+   0.91
+  ],
+  "fov": 58,
+  "exposure": 0.92,
+  "shift": 0.08
+ },
+ {
+  "id": "tmpgb-ch6-a",
+  "title": "t",
+  "titleFr": "t",
+  "room": "b-ch6",
+  "level": "basement",
+  "position": [
+   10.75,
+   -1.393,
+   3.0
+  ],
+  "target": [
+   13.0,
+   -1.393,
+   0.38
+  ],
+  "fov": 58,
+  "exposure": 1.12
+ },
+ {
+  "id": "tmpgb-ch6-b",
+  "title": "t",
+  "titleFr": "t",
+  "room": "b-ch6",
+  "level": "basement",
+  "position": [
+   10.75,
+   -1.393,
+   3.0
+  ],
+  "target": [
+   13.0,
+   -1.393,
+   0.38
+  ],
+  "fov": 60,
+  "exposure": 1.12,
+  "shift": -0.05
+ },
+ {
+  "id": "tmpgb-cui-a",
+  "title": "t",
+  "titleFr": "t",
+  "room": "g-cuisine",
+  "level": "ground",
+  "position": [
+   7.5,
+   1.45,
+   3.6
+  ],
+  "target": [
+   10.21,
+   1.45,
+   5.75
+  ],
+  "fov": 56,
+  "exposure": 0.9
+ }
 ]

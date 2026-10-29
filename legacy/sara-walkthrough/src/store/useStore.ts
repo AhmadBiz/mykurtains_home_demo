@@ -27,6 +27,12 @@ export interface PhotoCam {
   fov: number;
   /** Renderer tone-mapping exposure for this still; default = RENDER_EXPOSURE (0.85). */
   exposure?: number;
+  /**
+   * Vertical lens shift (rise) as a fraction of the frame height, like a shift lens: +0.15 moves the
+   * frame up by 15 % of its height while the camera stays level, so verticals stay vertical.
+   * Default 0.
+   */
+  shift?: number;
 }
 
 export interface TeleportRequest {
@@ -239,6 +245,7 @@ export function exposeDebugApi() {
           target: [...cam.target] as [number, number, number],
           fov: cam.fov,
           exposure: cam.exposure,
+          shift: cam.shift,
         },
       });
     },

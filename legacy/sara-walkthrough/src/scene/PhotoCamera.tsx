@@ -77,6 +77,10 @@ export function PhotoCamera() {
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.fov = cam.fov;
       camera.near = PHOTO_NEAR;
+      // Shift lens: slide the frustum window up by `shift` × its height (the camera stays level).
+      const shift = Number.isFinite(cam.shift) ? (cam.shift as number) : 0;
+      if (shift !== 0) camera.setViewOffset(camera.aspect * 1000, 1000, 0, -shift * 1000, camera.aspect * 1000, 1000);
+      else camera.clearViewOffset();
       camera.updateProjectionMatrix();
     }
     camera.updateMatrixWorld(true);
@@ -89,6 +93,7 @@ export function PhotoCamera() {
       if (camera instanceof THREE.PerspectiveCamera) {
         camera.fov = WALK_FOV;
         camera.near = WALK_NEAR;
+        camera.clearViewOffset();
         camera.updateProjectionMatrix();
       }
       gl.toneMappingExposure = RENDER_EXPOSURE;

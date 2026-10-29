@@ -44,10 +44,14 @@ const HANDLE_Y = 1.0;
 const OPEN_ANGLE = (95 * Math.PI) / 180;
 /**
  * Per-door open angle (radians) where the default 95° does not suit. A closed leaf (0) sits centred
- * in the wall thickness. d-walkin1: the master walk-in is a narrow aisle between two hanging rods;
- * an open leaf stands across its only view of the window, so its door is shown closed.
+ * in the wall thickness; a leaf opened flat (π) rests against the wall beside the opening, just
+ * clear of the casing.
+ *  - d-walkin1: the master walk-in is a narrow aisle between two hanging rods; an open leaf stands
+ *    across its only view of the window, so its door is shown closed.
+ *  - d-ch4: bedroom 4 is 2.9 m wide; at 95° the leaf stands in the only spot from which the window
+ *    wall reads whole, so it is opened flat against the free east wall south of the door.
  */
-const OPEN_ANGLE_BY_DOOR: Record<string, number> = { 'd-walkin1': 0 };
+const OPEN_ANGLE_BY_DOOR: Record<string, number> = { 'd-walkin1': 0, 'd-ch4': Math.PI };
 const CIRCULATION = /hall|corridor|vestibule|garage/;
 
 type Matrix = THREE.Matrix4;
@@ -329,7 +333,7 @@ export function addDoors(sets: Record<LevelId, BucketSet>): void {
       case 'door': {
         const sigma = swingSide(wall, g, px, pz);
         const angle = OPEN_ANGLE_BY_DOOR[o.id] ?? OPEN_ANGLE;
-        const hingeZ = angle > 0 ? sigma * (t / 2 - 0.01) : 0;
+        const hingeZ = angle <= 0 ? 0 : angle > Math.PI * 0.8 ? sigma * (t / 2 + PROUD + LEAF_T / 2 + 0.004) : sigma * (t / 2 - 0.01);
         addPanelLeaf(set, lw, lh, leafMatrix(M, hingeX, y0, hingeZ, dirSign, sigma, angle));
         break;
       }

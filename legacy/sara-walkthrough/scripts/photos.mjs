@@ -17,7 +17,8 @@
  *     "position": [x, y, z], "target": [x, y, z], "fov": 62, "exposure": 0.85,
  *     "overrides": { "w-salon-n": { "open": 0.6 } } }
  * Metres (see src/data/house.ts), fov = VERTICAL degrees. Keep target[1] === position[1] so verticals
- * stay vertical. `overrides` patches the proposal for this shot only (window.__house.setCovering).
+ * stay vertical. Optional "shift": vertical lens rise as a fraction of the frame height (shift lens,
+ * e.g. 0.15 for an exterior shot from eye height that needs more house and less lawn). `overrides` patches the proposal for this shot only (window.__house.setCovering).
  *
  * Each shot: applyProposal → overrides → photo camera → render frames on demand
  * (window.__house.renderFrame; the photo mode runs R3F with frameloop 'never') until two consecutive
@@ -88,6 +89,7 @@ function loadShots() {
       if (!vec(s.position) || !vec(s.target)) throw new Error(`${where}: "position" and "target" must be [x, y, z] numbers (metres)`);
       if (typeof s.fov !== 'number' || s.fov < 10 || s.fov > 120) throw new Error(`${where}: "fov" must be a vertical angle in degrees (10–120)`);
       if (s.exposure !== undefined && (typeof s.exposure !== 'number' || s.exposure <= 0)) throw new Error(`${where}: "exposure" must be > 0`);
+      if (s.shift !== undefined && (typeof s.shift !== 'number' || Math.abs(s.shift) > 0.5)) throw new Error(`${where}: "shift" (vertical lens rise, fraction of the frame height) must be a number in [-0.5, 0.5]`);
       if (seen.has(s.id)) throw new Error(`${where}: duplicate id (also in ${seen.get(s.id)})`);
       seen.set(s.id, f);
       if (Math.abs(s.target[1] - s.position[1]) > 1e-6) console.warn(`  note: ${s.id}: target.y ≠ position.y — the camera is tilted, verticals will converge`);
@@ -270,7 +272,7 @@ async function main() {
     await page.waitForFunction(() => typeof window.__house === 'object', null, { timeout: 60000 });
     // Enter photo mode at the first shot straight away (forces quality 'high', ceilings, no UI).
     await api('(h) => h.applyProposal()');
-    await api('(h, c) => h.photo(c)', { position: shots[0].position, target: shots[0].target, fov: shots[0].fov, exposure: shots[0].exposure });
+    await api('(h, c) => h.photo(c)', { position: shots[0].position, target: shots[0].target, fov: shots[0].fov, exposure: shots[0].exposure, shift: shots[0].shift });
     // PhotoCamera (inside the Scene's Suspense boundary) installs renderFrame once every texture and
     // the HDRI are loaded. The first frame then compiles every shader (a minute or two here).
     await page.waitForFunction(() => typeof window.__house?.renderFrame === 'function', null, { timeout: OP_TIMEOUT, polling: 500 });
@@ -284,7 +286,7 @@ async function main() {
         for (const id of Object.keys(s.overrides ?? {})) if (!windowIds.has(id)) throw new Error(`override for unknown window "${id}"`);
         await api('(h) => h.applyProposal()');
         for (const [id, patch] of Object.entries(s.overrides ?? {})) await api('(h, id, p) => h.setCovering(id, p)', id, patch);
-        await api('(h, c) => h.photo(c)', { position: s.position, target: s.target, fov: s.fov, exposure: s.exposure });
+        await api('(h, c) => h.photo(c)', { position: s.position, target: s.target, fov: s.fov, exposure: s.exposure, shift: s.shift });
         // The store change is committed synchronously (zustand → React sync lane) before page.evaluate
         // returns, so the next frame already shows the new state (it compiles any new covering shader
         // and refreshes the frozen shadow map). Frames are expensive, so no blind waiting: render one,
