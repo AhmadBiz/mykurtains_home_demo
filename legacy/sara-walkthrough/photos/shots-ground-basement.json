@@ -779,5 +779,137 @@
     "open": 0.25
    }
   }
+ },
+ {
+  "id": "sara-escalier-f",
+  "title": "escalier-f",
+  "titleFr": "escalier-f",
+  "room": "g-escalier",
+  "level": "ground",
+  "position": [
+   3.35,
+   2.97,
+   2.0
+  ],
+  "target": [
+   5.2,
+   2.97,
+   0.5
+  ],
+  "fov": 80,
+  "exposure": 0.85,
+  "overrides": {
+   "w-escalier": {
+    "open": 0.25
+   }
+  }
+ },
+ {
+  "id": "sara-escalier-g",
+  "title": "escalier-g",
+  "titleFr": "escalier-g",
+  "room": "g-escalier",
+  "level": "ground",
+  "position": [
+   3.35,
+   2.97,
+   2.0
+  ],
+  "target": [
+   5.6,
+   2.97,
+   0.91
+  ],
+  "fov": 76,
+  "exposure": 0.85
+ },
+ {
+  "id": "sara-cuisine-f",
+  "title": "cuisine-f",
+  "titleFr": "cuisine-f",
+  "room": "g-cuisine",
+  "level": "ground",
+  "position": [
+   7.5,
+   1.45,
+   3.6
+  ],
+  "target": [
+   10.21,
+   1.45,
+   5.4
+  ],
+  "fov": 62,
+  "exposure": 0.9
+ },
+ {
+  "id": "sara-sdeau-d",
+  "title": "sdeau-d",
+  "titleFr": "sdeau-d",
+  "room": "g-sdeau",
+  "level": "ground",
+  "position": [
+   2.15,
+   1.45,
+   2.55
+  ],
+  "target": [
+   2.6,
+   1.45,
+   0.91
+  ],
+  "fov": 68,
+  "exposure": 0.95
+ },
+ {
+  "id": "sara-familiale-d",
+  "title": "familiale-d",
+  "titleFr": "familiale-d",
+  "room": "b-familiale",
+  "level": "basement",
+  "position": [
+   8.7,
+   -1.3929999999999998,
+   4.1
+  ],
+  "target": [
+   12.6,
+   -1.3929999999999998,
+   6.25
+  ],
+  "fov": 56,
+  "exposure": 1.08,
+  "overrides": {
+   "w-familiale-e": {
+    "open": 0.35
+   },
+   "w-familiale-s": {
+    "open": 0.35
+   }
+  }
+ },
+ {
+  "id": "sara-sdb3-d",
+  "title": "sdb3-d",
+  "titleFr": "sdb3-d",
+  "room": "b-sdb3",
+  "level": "basement",
+  "position": [
+   2.45,
+   -1.3929999999999998,
+   3.42
+  ],
+  "target": [
+   2.68,
+   -1.3929999999999998,
+   0.91
+  ],
+  "fov": 56,
+  "exposure": 1.1,
+  "overrides": {
+   "w-sdb3-n": {
+    "open": 0.25
+   }
+  }
  }
 ]
