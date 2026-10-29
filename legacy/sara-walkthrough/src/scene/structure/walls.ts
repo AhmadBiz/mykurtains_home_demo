@@ -411,12 +411,17 @@ export function addWalls(sets: Record<LevelId, BucketSet>): void {
     }
 
     // ---- 3. rim board along the upper floor line ----
+    // It stands proud of the OUTSIDE face only: from the wall's centre plane (its inner face buried
+    // in the wall body) to BAND_LIP beyond the facade, so in a double-height stair void (no ceiling
+    // or slab in front of the interior face) the inside wall stays one plain painted plane.
     if (hasBand) {
+      const outer = outside * (w.thickness / 2 + BAND_LIP);
       for (const sp of cutSpans(xs, xe, bandY0, bandY1, cuts, false)) {
         const keys: BoxKeys = { rest: K.extTrim };
+        keys[outside > 0 ? 'nz' : 'pz'] = '';
         if (sp.s <= xs + EPS && endHidden(endA, sp.y0, sp.y1)) keys.nx = '';
         if (sp.e >= xe - EPS && endHidden(endB, sp.y0, sp.y1)) keys.px = '';
-        emitBox(sets.upper, keys, sp, w.thickness + 2 * BAND_LIP, w, matrix);
+        addBox(sets.upper, keys, { cx: (sp.s + sp.e) / 2, cy: (sp.y0 + sp.y1) / 2 - w.baseY, cz: outer / 2, sx: sp.e - sp.s, sy: sp.y1 - sp.y0, sz: Math.abs(outer) }, matrix);
       }
     }
 

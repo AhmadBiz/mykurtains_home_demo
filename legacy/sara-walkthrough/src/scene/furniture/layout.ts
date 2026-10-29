@@ -42,9 +42,10 @@ function salon(f: Frame): void {
   const [x1, z1] = bounds('g-salon');
   // Media unit on the north wall, west of the window (the west side of the room is the stair
   // entry + the opening to the hall, so a wall unit at Z ≈ 5 ft would block the first step).
-  const tvX = x1 + IN + 0.5;
-  P.tvUnit(f.at(tvX, 0, z1 + IN + 0.22, S), 1.0);
-  P.tv(f.at(tvX, 0.48, z1 + IN + 0.22, S), 0.9, 0);
+  // Narrow (0.65 m) unit kept clear of the west curtain stack of w-salon-n (fabric from X ≈ 7.0).
+  const tvX = x1 + 0.41;
+  P.tvUnit(f.at(tvX, 0, z1 + IN + 0.22, S), 0.65);
+  P.tv(f.at(tvX, 0.48, z1 + IN + 0.22, S), 0.6, 0);
   // Seating group facing the window / TV, leaving the Z 9–12.5 ft walkway from the hall free.
   const cx = x1 + 1.83; // X ≈ 26.5 ft
   P.rug(f.at(cx, 0, 1.5), 2.6, 1.9, 'rugRust');
@@ -262,7 +263,8 @@ function walkIn2(f: Frame): void {
   const cx = (x1 + x2) / 2 - 0.02;
   P.hangerRod(f.at(cx, 0, z2 - EXT_FACE - 0.25, N), 3.3, 1.6, false);
   P.shelfUnit(f.at(cx, 0, z2 - EXT_FACE - 0.2, N), 3.3, 0.45, 0.28, 2, 'paintWhite');
-  P.wallShelf(f.at(x2 - 0.82, 0, z2 - EXT_FACE, N), 1.2, 1.95, 0.3);
+  // short shelf in the east corner, clear of the frontal view of the window (X 5.33–6.10)
+  P.wallShelf(f.at(x2 - 0.47, 0, z2 - EXT_FACE, N), 0.8, 1.95, 0.3);
 }
 
 function linenCloset(f: Frame): void {

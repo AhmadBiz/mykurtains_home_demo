@@ -131,11 +131,15 @@ function addFlight(set: BucketSet, f: StairFlight): void {
   // wall-mounted round oak handrail on the spine side, 0.9 m above the nosing line, on nickel brackets
   {
     const runX = L - tread;
-    const runY = R - riser;
-    const railLen = Math.hypot(runX, runY) + 0.3;
+    // The rail stays within the flight's run (the spine wall it is fixed to ends with the flight):
+    // from just inside the low edge to 0.15 m (along the slope) past the top nosing.
+    const railX0 = 0.03;
+    const railX1 = Math.min(L - 0.03, runX + 0.15 * Math.cos(theta));
+    const railLen = (railX1 - railX0) / Math.cos(theta);
+    const railXm = (railX0 + railX1) / 2;
     const zr = zc + spineSide * (W / 2 - RAIL_GAP);
     const cyl = new THREE.CylinderGeometry(RAIL_R, RAIL_R, railLen, 12);
-    const local = new THREE.Matrix4().makeRotationZ(theta - Math.PI / 2).setPosition(runX / 2, (riser + R) / 2 + RAIL_H, zr);
+    const local = new THREE.Matrix4().makeRotationZ(theta - Math.PI / 2).setPosition(railXm, riser + RAIL_H + (railXm * R) / L, zr);
     set.get(K.oak).addGeometry(cyl, M.clone().multiply(local), 1);
     cyl.dispose();
     const stem = new THREE.CylinderGeometry(0.008, 0.008, RAIL_GAP - 0.01, 8).rotateX(Math.PI / 2);

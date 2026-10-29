@@ -1,0 +1,26 @@
+[
+  {
+    "id": "tmpgb-escalier-b",
+    "title": "t",
+    "titleFr": "t",
+    "room": "g-escalier",
+    "level": "ground",
+    "position": [
+      3.42,
+      3.0,
+      2.38
+    ],
+    "target": [
+      4.85,
+      3.0,
+      1.0
+    ],
+    "fov": 70,
+    "exposure": 0.8,
+    "overrides": {
+      "w-escalier": {
+        "open": 0.2
+      }
+    }
+  }
+]
