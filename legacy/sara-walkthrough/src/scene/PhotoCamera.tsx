@@ -6,12 +6,17 @@
  * OrbitView are unmounted), so a still is perfectly repeatable. On unmount the walk-mode lens and
  * the default exposure are restored.
  *
+ * The sun is static and its shadow camera does not follow the view, so the 4096² shadow map is NOT
+ * re-rendered every frame here (under software GL that pass is ~40 % of a frame): it is refreshed
+ * for SHADOW_REFRESH_FRAMES frames after any change of the camera or of the coverings (coverings
+ * mount new meshes that cast shadows), then frozen until the next change.
+ *
  * Keep target.y === position.y for a level camera: vertical lines then stay vertical (two-point
  * perspective), the way interiors are photographed.
  */
-import { useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useStore } from '../store/useStore';
 import { RENDER_EXPOSURE } from './Lighting';
 
@@ -19,12 +24,35 @@ const PHOTO_NEAR = 0.03;
 /** The Canvas defaults (App.tsx), restored when the photo mode ends. */
 const WALK_FOV = 70;
 const WALK_NEAR = 0.05;
+/** Frames during which the shadow map is re-rendered after a change (covers a late Suspense mount). */
+const SHADOW_REFRESH_FRAMES = 3;
 
 export function PhotoCamera() {
   const cam = useStore((s) => s.photoCam);
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const invalidate = useThree((s) => s.invalidate);
+  const coverings = useStore((s) => s.coverings);
+  const shadowFrames = useRef(SHADOW_REFRESH_FRAMES);
+
+  // Freeze the shadow map while in photo mode; refresh it after every change.
+  useEffect(() => {
+    shadowFrames.current = SHADOW_REFRESH_FRAMES;
+  }, [cam, coverings]);
+  useLayoutEffect(() => {
+    gl.shadowMap.autoUpdate = false;
+    gl.shadowMap.needsUpdate = true;
+    return () => {
+      gl.shadowMap.autoUpdate = true;
+    };
+  }, [gl]);
+  // Runs before the render of the same frame (priority < 1 keeps R3F's own render loop).
+  useFrame(() => {
+    if (shadowFrames.current > 0) {
+      shadowFrames.current -= 1;
+      gl.shadowMap.needsUpdate = true;
+    }
+  }, -1);
 
   useLayoutEffect(() => {
     if (!cam) return;

@@ -294,9 +294,10 @@ async function main() {
         await api('(h) => h.applyProposal()');
         for (const [id, patch] of Object.entries(s.overrides ?? {})) await api('(h, id, p) => h.setCovering(id, p)', id, patch);
         await api('(h, c) => h.photo(c)', { position: s.position, target: s.target, fov: s.fov, exposure: s.exposure });
-        // Let React commit, the reflection pass re-assign env maps and new covering shaders compile.
-        await renderedFrames(2);
-        await sleep(300);
+        // One full frame with the new state (React commits synchronously on a store change; this frame
+        // compiles any new covering shader, re-renders the shadow map and picks up the reflection pass).
+        await renderedFrames(1);
+        await sleep(200);
         // Then wait for two identical consecutive frames and keep the second one.
         await page.evaluate(() => {
           window.__photoPrevSig = null;
