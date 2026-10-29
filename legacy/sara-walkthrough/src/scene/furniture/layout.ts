@@ -311,7 +311,9 @@ function bedroom5(f: Frame): void {
   const bx = x2 - 0.96;
   P.bed(f.at(bx, 0, z2 - IN - 1.0, N), { w: 1.4, l: 2.0, frame: 'walnut', duvet: 'fabricSage', throw: 'velvetCream', headboard: 'fabricCharcoal' });
   P.nightstand(f.at(bx - 0.95, 0, z2 - IN - 0.2, N), 'walnut', 0.4);
-  P.wardrobe(f.at(x1 + IN + 0.3, 0, 0.75, E), 1.0, 2.0, 0.6, 'paintWhite');
+  // Wardrobe held 0.5 m off the north wall: closer, it stood inside the left stack of w-ch5-n's
+  // floor-length curtain (the track runs 0.3 m past the opening, fabric 0.3 m deep).
+  P.wardrobe(f.at(x1 + IN + 0.3, 0, 0.925, E), 0.85, 2.0, 0.6, 'paintWhite');
   P.rug(f.at(bx, 0, z2 - 2.05), 1.6, 1.2, 'rugRust');
   P.picture(f.at(bx, 0, z2 - INT_FACE, N), 0.7, 0.45, 1.5, 'art2');
 }

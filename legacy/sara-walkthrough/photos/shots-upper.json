@@ -416,5 +416,119 @@
   ],
   "fov": 70,
   "exposure": 1.0
+ },
+ {
+  "id": "sara-walkin-1d",
+  "title": "Master walk-in",
+  "titleFr": "Walk-in (chambre #1)",
+  "room": "u-walkin1",
+  "level": "upper",
+  "position": [
+   6.85,
+   4.48,
+   2.62
+  ],
+  "target": [
+   7.15,
+   4.48,
+   0
+  ],
+  "fov": 72,
+  "exposure": 1.0
+ },
+ {
+  "id": "sara-sdb-1d",
+  "title": "Ensuite bathroom",
+  "titleFr": "Salle de bain #1",
+  "room": "u-sdb1",
+  "level": "upper",
+  "position": [
+   7.55,
+   4.4,
+   4.72
+  ],
+  "target": [
+   9.73,
+   4.4,
+   6.31
+  ],
+  "fov": 68,
+  "exposure": 0.9
+ },
+ {
+  "id": "sara-chambre-2c",
+  "title": "Bedroom 2",
+  "titleFr": "Chambre #2",
+  "room": "u-ch2",
+  "level": "upper",
+  "position": [
+   4.62,
+   4.4,
+   6.72
+  ],
+  "target": [
+   7.62,
+   4.4,
+   7.82
+  ],
+  "fov": 64,
+  "exposure": 1.0
+ },
+ {
+  "id": "sara-walkin-2d",
+  "title": "Walk-in (bedroom 2)",
+  "titleFr": "Walk-in (chambre #2)",
+  "room": "u-walkin2",
+  "level": "upper",
+  "position": [
+   3.98,
+   4.49,
+   9.25
+  ],
+  "target": [
+   6.6,
+   4.49,
+   10.21
+  ],
+  "fov": 66,
+  "exposure": 1.05
+ },
+ {
+  "id": "sara-chambre-4c",
+  "title": "Bedroom 4",
+  "titleFr": "Chambre #4",
+  "room": "u-ch4",
+  "level": "upper",
+  "position": [
+   2.68,
+   4.5,
+   6.85
+  ],
+  "target": [
+   0.0,
+   4.5,
+   5.4
+  ],
+  "fov": 64,
+  "exposure": 0.95
+ },
+ {
+  "id": "sara-sdb-2c",
+  "title": "Family bathroom",
+  "titleFr": "Salle de bain #2",
+  "room": "u-sdb2",
+  "level": "upper",
+  "position": [
+   1.76,
+   4.45,
+   2.6
+  ],
+  "target": [
+   2.25,
+   4.45,
+   0.91
+  ],
+  "fov": 70,
+  "exposure": 1.0
  }
 ]
